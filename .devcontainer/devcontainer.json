@@ -1,0 +1,17 @@
+{
+	"name": "Chuxel's dev container features",
+	"image": "mcr.microsoft.com/vscode/devcontainers/base:0-bullseye",
+	"settings": { },
+	"extensions": [
+		"mads-hartmann.bash-ide-vscode",
+		"rogalmic.bash-debug",
+		"ms-azuretools.vscode-docker",
+		"EditorConfig.EditorConfig",
+		"DavidAnson.vscode-markdownlint"
+	],
+	"remoteUser": "vscode",
+	"features": {
+		"docker-in-docker": "latest",
+		"desktop-lite": "latest"
+	}
+}
