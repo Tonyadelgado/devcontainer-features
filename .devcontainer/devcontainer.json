@@ -9,6 +9,13 @@
 		"EditorConfig.EditorConfig",
 		"DavidAnson.vscode-markdownlint"
 	],
+	"forwardPorts": [6080],
+	"portsAttributes": {
+		"6080": {
+			"label": "Desktop web client",
+			"onAutoForward": "ignore",
+		}
+	},
 	"remoteUser": "vscode",
 	"features": {
 		"docker-in-docker": "latest",

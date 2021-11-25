@@ -1,30 +1,22 @@
 {
-    "features": [
-        {
-            "id": "helloworld",
-            "name": "My First Feature",
-            "options": {
-                "greeting": {
-                    "type": "string",
-                    "proposals": [ "hey", "hello", "hi", "howdy" ],
-                    "default": "hey",
-                    "description": "Select a pre-made greeting, or enter your own"
-                }
-            },
-            "include": ["ubuntu"]
-        },
-        {
-            "id": "color",
-            "name": "A feature to remind you of your favorite color",
-            "options": {
-                "favorite": {
-                    "type": "string",
-                    "enum": [ "red", "gold", "green" ],
-                    "default": "red",
-                    "description": "Choose your favorite color."
-                }
-            },
-            "include": ["ubuntu"]
-        }
-    ]
+	"features": [
+		{
+			"id": "vscode",
+			"name": "Visual Studio Code",
+			"options": {
+				"edition": {
+					"type": "string",
+					"enum": [ "stable", "insiders", "both" ],
+					"default": "stable",
+					"description": "VS Code edition to install"
+				}
+			},
+			"include": ["ubuntu"]
+		},
+		{
+			"id": "google-chrome",
+			"name": "Google Chrome",
+			"include": ["ubuntu"]
+		}
+	]
 }
