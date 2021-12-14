@@ -15,6 +15,6 @@ if [ ! -z ${_BUILD_ARG_VSCODE} ]; then
     bash ./scripts/vscode.sh ${_BUILD_ARG_VSCODE_EDITION:-stable}
 fi
 
-if [ ! -z ${_BUILD_ARG_GOOGLE-CHROME} ]; then
+if [ ! -z ${_BUILD_ARG_GOOGLECHROME} ]; then
     bash ./scripts/chrome.sh
 fi

@@ -4,19 +4,31 @@
 			"id": "vscode",
 			"name": "Visual Studio Code",
 			"options": {
+				"version": {
+					"type": "string",
+					"proposals": ["latest"],
+					"default": "latest",
+					"description": "VS Code version (currently ignored)"
+				},
 				"edition": {
 					"type": "string",
 					"enum": [ "stable", "insiders", "both" ],
 					"default": "stable",
 					"description": "VS Code edition to install"
 				}
-			},
-			"include": ["ubuntu"]
+			}
 		},
 		{
-			"id": "google-chrome",
+			"id": "googlechrome",
 			"name": "Google Chrome",
-			"include": ["ubuntu"]
+			"options": {
+				"version": {
+					"type": "string",
+					"proposals": ["latest"],
+					"default": "latest",
+					"description": "Chrome version (currently ignored)"
+				}
+			}
 		}
 	]
 }

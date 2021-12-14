@@ -14,15 +14,30 @@ jobs:
         id: get_tag_name  
         run: echo "::set-output name=tag::$(echo "${{ github.ref }}" | grep -oP 'refs/tags/\K(.+)')"
           
-      - name: Devcontainer features
-        uses: joshspicer/devcontainer-features-action@main
+      - name: Dev container features
+        uses: microsoft/publish-dev-container-features-action@main
         with:
           path-to-features: '.'
-          
-      - name: Get or Create Release at current tag
-        uses: ncipollo/release-action@v1
-        with:
-          allowUpdates: true # Lets us upload our own artifact from previous step
-          artifactErrorsFailBuild: true
-          artifacts: './features.tgz'
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create release
+      id: create_release
+      uses: actions/create-release@v1.0.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_tag_name.outputs.tag }}
+        release_name:  ${{ steps.get_tag_name.outputs.tag }}
+        draft: false
+        prerelease: false
+
+    - name: Upload package as release asset
+      id: upload_release_asset 
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./features.tgz
+        asset_name: features.tgz
+        asset_content_type: application/gzip 
+
