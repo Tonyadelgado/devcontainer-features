@@ -7,7 +7,7 @@
 		"rogalmic.bash-debug",
 		"ms-azuretools.vscode-docker",
 		"EditorConfig.EditorConfig",
-		"DavidAnson.vscode-markdownlint"
+		"streetsidesoftware.code-spell-checker"
 	],
 	"forwardPorts": [6080],
 	"portsAttributes": {
