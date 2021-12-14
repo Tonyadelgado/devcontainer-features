@@ -5,7 +5,7 @@ on:
     - 'v*'
 
 jobs:
-  deploy: # make sure the action works on a clean machine without building
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -19,25 +19,25 @@ jobs:
         with:
           path-to-features: '.'
 
-    - name: Create release
-      id: create_release
-      uses: actions/create-release@v1.0.0
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.get_tag_name.outputs.tag }}
-        release_name:  ${{ steps.get_tag_name.outputs.tag }}
-        draft: false
-        prerelease: false
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_tag_name.outputs.tag }}
+          release_name:  ${{ steps.get_tag_name.outputs.tag }}
+          draft: false
+          prerelease: false
 
-    - name: Upload package as release asset
-      id: upload_release_asset 
-      uses: actions/upload-release-asset@v1.0.1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./features.tgz
-        asset_name: features.tgz
-        asset_content_type: application/gzip 
+      - name: Upload package as release asset
+        id: upload_release_asset 
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./features.tgz
+          asset_name: features.tgz
+          asset_content_type: application/gzip 
 
