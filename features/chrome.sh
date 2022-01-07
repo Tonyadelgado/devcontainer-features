@@ -1,12 +1,8 @@
 #!/bin/bash
+set -e
 
 # Import common utils
-. "$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)/utils.sh"
-
-if [ "$(id -u)" -ne 0 ]; then
-    echo -e 'Script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.'
-    exit 1
-fi
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/utils.sh"
 
 export DEBIAN_FRONTEND=noninteractive
 check_packages curl ca-certificates apt-transport-https dirmngr gnupg2

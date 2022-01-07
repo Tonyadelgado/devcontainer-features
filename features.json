@@ -6,7 +6,7 @@
 			"options": {
 				"version": {
 					"type": "string",
-					"proposals": ["latest"],
+					"enum": ["latest"],
 					"default": "latest",
 					"description": "VS Code version (currently ignored)"
 				},
@@ -24,9 +24,21 @@
 			"options": {
 				"version": {
 					"type": "string",
-					"proposals": ["latest"],
+					"enum": ["latest"],
 					"default": "latest",
 					"description": "Chrome version (currently ignored)"
+				}
+			}
+		},
+		{
+			"id": "packcli",
+			"name": "Buildpacks pack CLI",
+			"options": {
+				"version": {
+					"type": "string",
+					"proposals": ["latest"],
+					"default": "latest",
+					"description": "Pack CLI version"
 				}
 			}
 		}

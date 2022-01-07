@@ -4,7 +4,7 @@ EDITION="${1:-stable}" # stable, insiders, both
 MICROSOFT_GPG_KEYS_URI="https://packages.microsoft.com/keys/microsoft.asc"
 
 # Import common utils
-. "$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)/utils.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/utils.sh"
 
 # Determine the appropriate non-root user
 username="automatic"
