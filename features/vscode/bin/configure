@@ -1,19 +1,22 @@
 #!/bin/bash
 set -e
-EDITION="${1:-stable}" # stable, insiders, both
 MICROSOFT_GPG_KEYS_URI="https://packages.microsoft.com/keys/microsoft.asc"
+FEATURE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FEATURE_ID="$(basename "${FEATURE_PATH}")"
 
 # Import common utils
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/utils.sh"
-
-# Determine the appropriate non-root user
-username="automatic"
-detect_user username
+. "${FEATURE_PATH}/../../common/utils.sh"
 
 if [ "$(id -u)" -ne 0 ]; then
-    echo -e 'Script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.'
+    echo -e 'Script must be run as root.'
     exit 1
 fi
+
+set_var_to_option_value "${FEATURE_ID}" edition vscode_edition "stable"
+set_var_to_option_value "${FEATURE_ID}" username username "automatic"
+
+# Determine the appropriate non-root user
+detect_user username
 
 install-code() {
     local url=$1
@@ -35,20 +38,17 @@ install-code() {
         && echo '{ \"window.titleBarStyle\": \"custom\" }' > \"$cfg/settings.json\"" 2>&1
 }
 
-export DEBIAN_FRONTEND=noninteractive
-check_packages curl ca-certificates apt-transport-https dirmngr gnupg2
-
 curl -sSL ${MICROSOFT_GPG_KEYS_URI} | gpg --dearmor > /usr/share/keyrings/microsoft-archive-keyring.gpg
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list
 apt-get update
 
 # Install VS Code
 to_install=""
-if [ "${EDITION}" != "insiders" ]; then
+if [ "${vscode_edition}" != "insiders" ]; then
     to_install="code"
 fi
 
-if [ "${EDITION}" != "stable" ]; then
+if [ "${vscode_edition}" != "stable" ]; then
     to_install="${to_install} code-insiders"
 fi
 apt-get -y install ${to_install}

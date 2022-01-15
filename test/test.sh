@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e
+test_image=${1:-"mcr.microsoft.com/vscode/devcontainers/base:debian"}
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+docker run -it --rm -u root -v "$(pwd):/features" "${test_image}" bash /features/install.sh true
