@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+layers_dir="$1"
+env_dir="$2/env"
+plan_path="$3"
+
+## START REPLACED VARIABLES ##
+feature_name="feature-name"
+## END REPLACED VARIABLES ##
+
+buildpack_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+
+[[provides]]
+name = "node"
+
+launch = true
+cache = true
+build = true

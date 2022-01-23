@@ -19,6 +19,7 @@
 	"remoteUser": "vscode",
 	"features": {
 		"docker-in-docker": "latest",
-		"desktop-lite": "latest"
+		"desktop-lite": "latest",
+		"golang": "latest"
 	}
 }
