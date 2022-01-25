@@ -15,8 +15,14 @@ import (
 )
 
 func main() {
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: build <layers-dir> <platform-dir> <build.toml plan path>")
+		os.Exit(1)
+	}
+
 	layersDir := os.Args[1]
-	envDir := filepath.Join(os.Args[2], "env")
+	platformDir := os.Args[2]
+	envDir := filepath.Join(platformDir, "env")
 	planPath := os.Args[3]
 
 	// Load features.json, buildpack settings
@@ -45,13 +51,10 @@ func main() {
 	}
 	toml.NewEncoder(file).Encode(plan)
 
-	// TODO: Write
+	// TODO: Write launch.toml with label metadata to indicate build was executed
 }
 
 func buildFeature(buildpackSettings libbuildpackify.BuildpackSettings, feature libbuildpackify.FeatureConfig, plan *libcnb.BuildpackPlan, layersDir string, envDir string) (bool, map[string]string) {
-	// Get path to features content
-	featuresPath := filepath.Join(os.Getenv("CNB_BUILDPACK_DIR"), "features")
-
 	// e.g. chuxel/devcontainer/features/packcli
 	fullFeatureId := buildpackSettings.Publisher + "/" + buildpackSettings.FeatureSet + "/" + feature.Id
 	fullFeatureIdWithDashes := buildpackSettings.Publisher + "-" + buildpackSettings.FeatureSet + "-" + feature.Id
@@ -65,7 +68,7 @@ func buildFeature(buildpackSettings libbuildpackify.BuildpackSettings, feature l
 	}
 
 	// Execute acquire script if present
-	acquireScriptPath := filepath.Join(featuresPath, feature.Id, "bin", "acquire")
+	acquireScriptPath := libbuildpackify.GetFeatureScriptPath(feature.Id, "acquire")
 	_, err := os.Stat(acquireScriptPath)
 	if err != nil {
 		env := os.Environ()

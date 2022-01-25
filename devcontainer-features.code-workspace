@@ -1,0 +1,27 @@
+{
+	"folders": [
+		{
+			"name": "libbuildpackify",
+			"path": "tools/buildpackify/libbuildpackify"
+		},
+		{
+			"name": "build",
+			"path": "tools/buildpackify/api-binaries/build"
+		},
+		{
+			"name": "detect",
+			"path": "tools/buildpackify/api-binaries/detect"
+		},
+		{
+			"name": "devcontainer-features",
+			"path": "."
+		}
+	],
+	"settings": {
+		"cSpell.words": [
+			"buildpackify",
+			"libbuildpackify",
+			"libcnb"
+		]
+	}
+}

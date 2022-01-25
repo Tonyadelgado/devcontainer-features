@@ -14,10 +14,18 @@ type FeatureMount struct {
 	Type   string
 }
 
+type FeatureOption struct {
+	Type        string
+	Enum        []string
+	Proposals   []string
+	Default     string
+	Description string
+}
+
 type FeatureConfig struct {
 	Id           string
 	Name         string
-	Options      map[string]string
+	Options      map[string]FeatureOption
 	Entrypoint   string
 	Privileged   bool
 	Init         bool
@@ -40,12 +48,12 @@ type BuildpackSettings struct {
 
 // Pull in json as a simple map of maps given the structure
 type DevContainerJson struct {
-	Features map[string]map[string]string
+	Features map[string]interface{}
 }
 
 func LoadFeaturesJson() FeaturesJson {
 	// Load features.json
-	content, err := ioutil.ReadFile(filepath.Join(os.Getenv("CNB_BUILDPACK_DIR"), "features", "features.json"))
+	content, err := ioutil.ReadFile(filepath.Join(os.Getenv("CNB_BUILDPACK_DIR"), "features.json"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,4 +79,9 @@ func LoadBuildpackSettings() BuildpackSettings {
 	}
 
 	return jsonContents
+}
+
+func GetFeatureScriptPath(featureId string, script string) string {
+	return filepath.Join(os.Getenv("CNB_BUILDPACK_DIR"), "features", featureId, "bin", script)
+
 }
