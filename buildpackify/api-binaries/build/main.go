@@ -42,7 +42,7 @@ func main() {
 	if _, err := toml.DecodeFile(planPath, &plan); err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Plan entries: %d", len(plan.Entries))
+	log.Printf("Plan entries: %d\n", len(plan.Entries))
 
 	// Process each feature if it is in the buildpack plan in the order they appear in features.json
 	var layers []libcnb.Layer
@@ -52,6 +52,7 @@ func main() {
 			layers = append(layers, layer)
 		}
 	}
+	log.Printf("Number of layers added: %d", len(layers))
 
 	// Write unmet dependencies in build.toml - https://github.com/buildpacks/spec/blob/main/buildpack.md#buildtoml-toml
 	// The buildFeatures method removes any unmet dependencies from the plan, so iterate through remaining entries.
@@ -60,6 +61,7 @@ func main() {
 		unmetEntry := libcnb.UnmetPlanEntry{Name: entry.Name}
 		buildToml.Unmet = append(buildToml.Unmet, unmetEntry)
 	}
+	log.Printf("Unmet dpendencies: %d", len(layers))
 	file, err := os.OpenFile(filepath.Join(layersDir, "build.toml"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatal(err)
@@ -67,7 +69,6 @@ func main() {
 	toml.NewEncoder(file).Encode(buildToml)
 
 	// TODO: Write launch.toml with label metadata to indicate build was executed based on metadata in layers
-	log.Printf("Number of layers added: %d", len(layers))
 }
 
 func buildFeatureIfInPlan(buildpackSettings libbuildpackify.BuildpackSettings, feature libbuildpackify.FeatureConfig, plan *libcnb.BuildpackPlan, layersDir string, envDir string) (bool, libcnb.Layer) {
@@ -94,6 +95,8 @@ func buildFeatureIfInPlan(buildpackSettings libbuildpackify.BuildpackSettings, f
 		argPrefix+"=true",
 		argPrefix+"_TARGET_PATH="+targetLayerPath)
 	// TODO: Inspect devcontainer.json if present to find options, generate args, add these as labels
+	// Issue: results in re-implementation mapping of env vars, need to keep JS and Go impls in sync.
+	// Alternative: Shared native module that uses a go lib?
 
 	// Execute the script
 	log.Printf("Executing %s\n", acquireScriptPath)
@@ -116,7 +119,6 @@ func buildFeatureIfInPlan(buildpackSettings libbuildpackify.BuildpackSettings, f
 	toml.NewEncoder(file).Encode(layer)
 
 	return true, layer
-
 }
 
 // See if the build plan includes an entry for this feature. If so, remove it
@@ -132,7 +134,6 @@ func updatePlanAndGetLayerForFeature(fullFeatureId string, plan *libcnb.Buildpac
 			// Remove this entry from the plan
 			copy(plan.Entries[i:], plan.Entries[i+1:])
 			plan.Entries = plan.Entries[:len(plan.Entries)-1]
-			plan.Entries = plan.Entries[:i]
 
 			// Set layer types
 			var layerTypes libcnb.LayerTypes

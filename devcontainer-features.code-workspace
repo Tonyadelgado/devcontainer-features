@@ -2,15 +2,15 @@
 	"folders": [
 		{
 			"name": "libbuildpackify",
-			"path": "tools/buildpackify/libbuildpackify"
+			"path": "buildpackify/libbuildpackify"
 		},
 		{
 			"name": "build",
-			"path": "tools/buildpackify/api-binaries/build"
+			"path": "buildpackify/api-binaries/build"
 		},
 		{
 			"name": "detect",
-			"path": "tools/buildpackify/api-binaries/detect"
+			"path": "buildpackify/api-binaries/detect"
 		},
 		{
 			"name": "devcontainer-features",
