@@ -1,4 +1,5 @@
 {
 	"Publisher": "chuxel",
-	"FeatureSet": "devcontainer-features"
+	"FeatureSet": "devcontainer-features",
+	"Version": "1.0.0"
 }

@@ -40,10 +40,11 @@ type FeaturesJson struct {
 	Features []FeatureConfig
 }
 
-// Required manual configuration
+// Required configuration for processing
 type BuildpackSettings struct {
 	Publisher  string // aka GitHub Org
 	FeatureSet string // aka GitHub Repository
+	Version    string // Used for version pinning
 }
 
 // Pull in json as a simple map of maps given the structure
@@ -52,10 +53,15 @@ type DevContainerJson struct {
 }
 
 func LoadFeaturesJson() FeaturesJson {
-	// Load features.json
-	content, err := ioutil.ReadFile(filepath.Join(os.Getenv("CNB_BUILDPACK_DIR"), "features.json"))
+	// Load devcontainer-features.json or features.json
+	var content []byte
+	var err error
+	content, err = ioutil.ReadFile(filepath.Join(os.Getenv("CNB_BUILDPACK_DIR"), "devcontainer-features.json"))
 	if err != nil {
-		log.Fatal(err)
+		content, err = ioutil.ReadFile(filepath.Join(os.Getenv("CNB_BUILDPACK_DIR"), "features.json"))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	var featuresJson FeaturesJson
 	err = json.Unmarshal(content, &featuresJson)
@@ -67,7 +73,7 @@ func LoadFeaturesJson() FeaturesJson {
 }
 
 func LoadBuildpackSettings() BuildpackSettings {
-	// Load features.json
+	// Load devcontainer-features.json or features.json
 	content, err := ioutil.ReadFile(filepath.Join(os.Getenv("CNB_BUILDPACK_DIR"), "buildpack-settings.json"))
 	if err != nil {
 		log.Fatal(err)
