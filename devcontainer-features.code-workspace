@@ -1,25 +1,30 @@
 {
 	"folders": [
 		{
-			"name": "libbuildpackify",
-			"path": "buildpackify/libbuildpackify"
+			"name": "libbuildpackify go module",
+			"path": "buildpack/libbuildpackify"
 		},
 		{
-			"name": "build",
-			"path": "buildpackify/api-binaries/build"
+			"name": "build go module",
+			"path": "buildpack/api-binaries/build"
 		},
 		{
-			"name": "detect",
-			"path": "buildpackify/api-binaries/detect"
+			"name": "detect go module",
+			"path": "buildpack/api-binaries/detect"
 		},
 		{
-			"name": "devcontainer-features",
+			"name": "buildpack",
+			"path": "buildpack"
+		},
+		{
+			"name": "repository root",
 			"path": "."
 		}
 	],
 	"settings": {
 		"cSpell.words": [
 			"buildpackify",
+			"buildpack",
 			"libbuildpackify",
 			"libcnb"
 		]

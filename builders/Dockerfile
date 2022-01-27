@@ -3,8 +3,8 @@ FROM ubuntu:bionic as base
 # Set required environment variables, label
 ENV CNB_USER_ID=1000
 ENV CNB_GROUP_ID=1000
-ENV CNB_STACK_ID="io.buildpacks.stacks.bionic"
-LABEL io.buildpacks.stack.id="io.buildpacks.stacks.bionic"
+ENV CNB_STACK_ID="com.chuxel.stacks.test.bionic"
+LABEL io.buildpacks.stack.id="com.chuxel.stacks.test.bionic"
 
 # Add required non-root user
 RUN groupadd cnb --gid ${CNB_GROUP_ID} && \

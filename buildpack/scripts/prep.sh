@@ -16,5 +16,6 @@ build_api_binary build
 build_api_binary detect
 
 ln -sf "$(realpath ../features)" out/features
+ln -sf "$(realpath ../common)" out/common
 cp -f ../features.json out/
 cp -f ../buildpack-settings.json out/
