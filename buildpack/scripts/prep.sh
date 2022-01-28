@@ -4,8 +4,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")"/..
 
 ./scripts/compile.sh
 
-ln -sf "$(realpath ../features)" out/features
-ln -sf "$(realpath ../common)" out/common
+cp -rf ../features out/
+cp -rf ../common out/
 cp -f ../features.json out/
 cp -f ../buildpack-settings.json out/
 cp -f assets/* out/

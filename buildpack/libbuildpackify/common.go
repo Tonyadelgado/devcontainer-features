@@ -89,5 +89,4 @@ func LoadBuildpackSettings() BuildpackSettings {
 
 func GetFeatureScriptPath(featureId string, script string) string {
 	return filepath.Join(os.Getenv("CNB_BUILDPACK_DIR"), "features", featureId, "bin", script)
-
 }

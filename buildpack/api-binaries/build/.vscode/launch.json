@@ -16,7 +16,7 @@
 				"${workspaceFolder}/test-assets/buildpack-plan.toml"
 			],
 			"env": {
-				"CNB_BUILDPACK_DIR":"${workspaceFolder}/../../../.."
+				"CNB_BUILDPACK_DIR":"${workspaceFolder}/../../.."
 			}
         }
     ]

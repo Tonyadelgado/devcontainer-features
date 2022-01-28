@@ -32,6 +32,7 @@ func main() {
 	planPath := os.Args[3]
 
 	log.Printf("Parameters:\n- Layers dir: %s\n- Platform dir: %s\n- Plan path: %s\n- CNB_BUILDPACK_DIR: %s\n", layersDir, platformDir, planPath, os.Getenv("CNB_BUILDPACK_DIR"))
+	log.Println("Env:", os.Environ())
 
 	// Load features.json, buildpack settings
 	featuresJson := libbuildpackify.LoadFeaturesJson()
@@ -50,6 +51,7 @@ func main() {
 		layerAdded, layer := buildFeatureIfInPlan(buildpackSettings, feature, &plan, layersDir, envDir)
 		if layerAdded {
 			layers = append(layers, layer)
+			// TODO: Handle entrypoints? Or leave this to devcontainer CLI?
 		}
 	}
 	log.Printf("Number of layers added: %d", len(layers))
@@ -61,14 +63,14 @@ func main() {
 		unmetEntry := libcnb.UnmetPlanEntry{Name: entry.Name}
 		buildToml.Unmet = append(buildToml.Unmet, unmetEntry)
 	}
-	log.Printf("Unmet dpendencies: %d", len(layers))
+	log.Printf("Unmet dependencies: %d", len(layers))
 	file, err := os.OpenFile(filepath.Join(layersDir, "build.toml"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
 	toml.NewEncoder(file).Encode(buildToml)
 
-	// TODO: Write launch.toml with label metadata to indicate build was executed based on metadata in layers
+	// TODO: Write launch.toml with label metadata (from layers) to indicate which features should be processed by devcontainer CLI
 }
 
 func buildFeatureIfInPlan(buildpackSettings libbuildpackify.BuildpackSettings, feature libbuildpackify.FeatureConfig, plan *libcnb.BuildpackPlan, layersDir string, envDir string) (bool, libcnb.Layer) {
@@ -86,17 +88,33 @@ func buildFeatureIfInPlan(buildpackSettings libbuildpackify.BuildpackSettings, f
 	acquireScriptPath := libbuildpackify.GetFeatureScriptPath(feature.Id, "acquire")
 	_, err := os.Stat(acquireScriptPath)
 	if err != nil {
+		log.Printf("No acquire script for feature %s. Skipping.", fullFeatureId)
 		return false, layer
 	}
 
 	// Create environment that includes feature build args
-	argPrefix := "_BUILD_ARG_" + strings.ToUpper(feature.Id)
+	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
+	optionEnvVarPrefix := "_BUILD_ARG_" + idSafe
 	env := append(os.Environ(),
-		argPrefix+"=true",
-		argPrefix+"_TARGET_PATH="+targetLayerPath)
-	// TODO: Inspect devcontainer.json if present to find options, generate args, add these as labels
-	// Issue: results in re-implementation mapping of env vars, need to keep JS and Go impls in sync.
-	// Alternative: Shared native module that uses a go lib?
+		optionEnvVarPrefix+"=true",
+		optionEnvVarPrefix+"_TARGET_PATH="+targetLayerPath)
+
+	setOptions := make(map[string]string)
+
+	// TODO: Inspect devcontainer.json if present to find options
+	// TODO: Vary dev container verses feature processing somehow
+
+	// Look for BP_DEV_CONTAINER_FEATURE_<feature.Id>_<option> environment variables, convert
+	for optionName := range feature.Options {
+		optionNameSafe := strings.ReplaceAll(strings.ToUpper(optionName), "-", "_")
+		optionValue := os.Getenv("BP_DEV_CONTAINER_FEATURE_" + idSafe + "_" + optionNameSafe)
+		if optionValue != "" {
+			env = append(env, optionEnvVarPrefix+"_"+optionName+"=\""+optionValue+"\"")
+			setOptions[optionName] = optionValue
+		}
+	}
+
+	// TODO: Populate env directory with any env vars set in features.json?
 
 	// Execute the script
 	log.Printf("Executing %s\n", acquireScriptPath)
@@ -109,7 +127,18 @@ func buildFeatureIfInPlan(buildpackSettings libbuildpackify.BuildpackSettings, f
 	if err := acquireCommand.Run(); err != nil {
 		log.Fatal(err)
 	}
-	// TODO: Check exit code
+	exitCode := acquireCommand.ProcessState.ExitCode()
+	if exitCode != 0 {
+		log.Printf("Error executing %s. Exit code %d.\n", acquireScriptPath, exitCode)
+		os.Exit(exitCode)
+	}
+
+	// Add ID and options to layer metadata
+	layer.Metadata = make(map[string]interface{})
+	layer.Metadata["id"] = fullFeatureId
+	for name, value := range setOptions {
+		layer.Metadata[name] = value
+	}
 
 	// Write <full-feature-id>.toml - https://github.com/buildpacks/spec/blob/main/buildpack.md#layer-content-metadata-toml
 	file, err := os.OpenFile(filepath.Join(layersDir, fullFeatureIdWithDashes+".toml"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
@@ -125,16 +154,17 @@ func buildFeatureIfInPlan(buildpackSettings libbuildpackify.BuildpackSettings, f
 // from the plan and return the layer types for use in this buildpack
 func updatePlanAndGetLayerForFeature(fullFeatureId string, plan *libcnb.BuildpackPlan) (bool, libcnb.Layer) {
 	var layer libcnb.Layer
-	shouldCreateLayer := false
 	// See if detect said should provide this feature
 	for i := len(plan.Entries) - 1; i >= 0; i-- {
 		entry := plan.Entries[i]
 		if entry.Name == fullFeatureId {
-			shouldCreateLayer = true
+			log.Printf("Found entry for %s", fullFeatureId)
 			// Remove this entry from the plan
-			copy(plan.Entries[i:], plan.Entries[i+1:])
-			plan.Entries = plan.Entries[:len(plan.Entries)-1]
-
+			if len(plan.Entries) > 1 {
+				copy(plan.Entries[:i], plan.Entries[i+1:])
+			} else {
+				plan.Entries = []libcnb.BuildpackPlanEntry{}
+			}
 			// Set layer types
 			var layerTypes libcnb.LayerTypes
 			for _, key := range []string{"Build", "Launch", "Cache"} {
@@ -152,9 +182,10 @@ func updatePlanAndGetLayerForFeature(fullFeatureId string, plan *libcnb.Buildpac
 			layer.LayerTypes = layerTypes
 
 			// TODO: Verify whether multiple entries for the same feature could theoretically be present
-			break
+
+			return true, layer
 		}
 	}
 
-	return shouldCreateLayer, layer
+	return false, layer
 }
