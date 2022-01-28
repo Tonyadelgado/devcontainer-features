@@ -2,5 +2,6 @@
 set -e
 cd "$(dirname "${BASH_SOURCE[0]}")"/..
 
-./stack/build-stack.sh
-./builders/build-bulders.sh
+./builders/build-stack.sh
+./builders/create-bulders.sh
+./buildpack/test.sh

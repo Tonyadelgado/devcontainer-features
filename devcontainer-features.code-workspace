@@ -1,16 +1,16 @@
 {
 	"folders": [
 		{
-			"name": "libbuildpackify go module",
-			"path": "buildpack/libbuildpackify"
-		},
-		{
-			"name": "build go module",
+			"name": "build (go module)",
 			"path": "buildpack/api-binaries/build"
 		},
 		{
-			"name": "detect go module",
+			"name": "detect (go module)",
 			"path": "buildpack/api-binaries/detect"
+		},
+		{
+			"name": "libbuildpackify (go module)",
+			"path": "buildpack/libbuildpackify"
 		},
 		{
 			"name": "buildpack",
