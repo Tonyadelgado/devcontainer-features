@@ -56,6 +56,7 @@ func main() {
 	}
 	log.Printf("Number of layers added: %d", len(layers))
 
+	// TODO: BUG - met entries not removed from plan entries
 	// Write unmet dependencies in build.toml - https://github.com/buildpacks/spec/blob/main/buildpack.md#buildtoml-toml
 	// The buildFeatures method removes any unmet dependencies from the plan, so iterate through remaining entries.
 	var buildToml libcnb.BuildTOML
@@ -63,7 +64,7 @@ func main() {
 		unmetEntry := libcnb.UnmetPlanEntry{Name: entry.Name}
 		buildToml.Unmet = append(buildToml.Unmet, unmetEntry)
 	}
-	log.Printf("Unmet dependencies: %d", len(layers))
+	log.Printf("Unmet dependencies: %d", len(buildToml.Unmet))
 	file, err := os.OpenFile(filepath.Join(layersDir, "build.toml"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatal(err)
