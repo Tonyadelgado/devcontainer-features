@@ -20,9 +20,10 @@ RUN apt-get update \
 		tzdata \
         gnupg2 \
         dirmngr \
-        procps
+        procps \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-# ** Build image **
+#  ******* Build image  *******
 FROM base as build
 
 # https://github.com/docker-library/buildpack-deps/blob/master/ubuntu/bionic/Dockerfile
@@ -74,8 +75,11 @@ RUN apt-get update \
         zlib1g-dev \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-# ** Dev container "run" image **
-FROM build as devcontainer
+#  ******* Dev container "build" image  *******
+FROM build as devcontainer-build
+
+#  ******* Dev container "run" image  *******
+FROM devcontainer-build as devcontainer-run
 
 RUN apt-get update \
     && yes | unminimize 2>&1 \ 
@@ -84,6 +88,6 @@ RUN apt-get update \
 
 USER ${CNB_USER_ID}:${CNB_GROUP_ID}
 
-# ** Production run image **
+#  ******* Production run image  *******
 FROM base as run
 USER ${CNB_USER_ID}:${CNB_GROUP_ID}

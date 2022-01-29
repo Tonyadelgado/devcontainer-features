@@ -28,7 +28,6 @@ func main() {
 	}
 	layersDir := os.Args[1]
 	platformDir := os.Args[2]
-	envDir := filepath.Join(platformDir, "env")
 	planPath := os.Args[3]
 
 	log.Printf("Parameters:\n- Layers dir: %s\n- Platform dir: %s\n- Plan path: %s\n- CNB_BUILDPACK_DIR: %s\n", layersDir, platformDir, planPath, os.Getenv("CNB_BUILDPACK_DIR"))
@@ -48,7 +47,7 @@ func main() {
 	// Process each feature if it is in the buildpack plan in the order they appear in features.json
 	var layers []libcnb.Layer
 	for _, feature := range featuresJson.Features {
-		layerAdded, layer := buildFeatureIfInPlan(buildpackSettings, feature, &plan, layersDir, envDir)
+		layerAdded, layer := buildFeatureIfInPlan(buildpackSettings, feature, &plan, layersDir)
 		if layerAdded {
 			layers = append(layers, layer)
 			// TODO: Handle entrypoints? Or leave this to devcontainer CLI?
@@ -74,48 +73,35 @@ func main() {
 	// TODO: Write launch.toml with label metadata (from layers) to indicate which features should be processed by devcontainer CLI
 }
 
-func buildFeatureIfInPlan(buildpackSettings libbuildpackify.BuildpackSettings, feature libbuildpackify.FeatureConfig, plan *libcnb.BuildpackPlan, layersDir string, envDir string) (bool, libcnb.Layer) {
+func buildFeatureIfInPlan(buildpackSettings libbuildpackify.BuildpackSettings, feature libbuildpackify.FeatureConfig, plan *libcnb.BuildpackPlan, layersDir string) (bool, libcnb.Layer) {
 	// e.g. chuxel/devcontainer/features/packcli
 	fullFeatureId := buildpackSettings.Publisher + "/" + buildpackSettings.FeatureSet + "/" + feature.Id
 	fullFeatureIdWithDashes := buildpackSettings.Publisher + "-" + buildpackSettings.FeatureSet + "-" + feature.Id
-	targetLayerPath := filepath.Join(layersDir, fullFeatureIdWithDashes)
+	var err error
 
 	shouldCreateLayer, layer := updatePlanAndGetLayerForFeature(fullFeatureId, plan)
 	if !shouldCreateLayer {
 		return false, layer
 	}
 
+	// Create layer directory
+	targetLayerPath := filepath.Join(layersDir, fullFeatureIdWithDashes)
+	targetLayerEnvPath := filepath.Join(targetLayerPath, "env")
+	err = os.MkdirAll(filepath.Join(targetLayerEnvPath, "env"), 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Check if acquire script for feature exists, exit otherwise
 	acquireScriptPath := libbuildpackify.GetFeatureScriptPath(feature.Id, "acquire")
-	_, err := os.Stat(acquireScriptPath)
+	_, err = os.Stat(acquireScriptPath)
 	if err != nil {
 		log.Printf("No acquire script for feature %s. Skipping.", fullFeatureId)
 		return false, layer
 	}
 
-	// Create environment that includes feature build args
-	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
-	optionEnvVarPrefix := "_BUILD_ARG_" + idSafe
-	env := append(os.Environ(),
-		optionEnvVarPrefix+"=true",
-		optionEnvVarPrefix+"_TARGET_PATH="+targetLayerPath)
-
-	setOptions := make(map[string]string)
-
-	// TODO: Inspect devcontainer.json if present to find options
-	// TODO: Vary dev container verses feature processing somehow
-
-	// Look for BP_DEV_CONTAINER_FEATURE_<feature.Id>_<option> environment variables, convert
-	for optionName := range feature.Options {
-		optionNameSafe := strings.ReplaceAll(strings.ToUpper(optionName), "-", "_")
-		optionValue := os.Getenv("BP_DEV_CONTAINER_FEATURE_" + idSafe + "_" + optionNameSafe)
-		if optionValue != "" {
-			env = append(env, optionEnvVarPrefix+"_"+optionName+"=\""+optionValue+"\"")
-			setOptions[optionName] = optionValue
-		}
-	}
-
-	// TODO: Populate env directory with any env vars set in features.json?
+	// Get build environment based on set options
+	env, setOptions := libbuildpackify.GetBuildEnvironment(feature, targetLayerPath)
 
 	// Execute the script
 	log.Printf("Executing %s\n", acquireScriptPath)
@@ -142,11 +128,28 @@ func buildFeatureIfInPlan(buildpackSettings libbuildpackify.BuildpackSettings, f
 	}
 
 	// Write <full-feature-id>.toml - https://github.com/buildpacks/spec/blob/main/buildpack.md#layer-content-metadata-toml
-	file, err := os.OpenFile(filepath.Join(layersDir, fullFeatureIdWithDashes+".toml"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	layerFile, err := os.OpenFile(filepath.Join(layersDir, fullFeatureIdWithDashes+".toml"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
-	toml.NewEncoder(file).Encode(layer)
+	toml.NewEncoder(layerFile).Encode(layer)
+
+	// Add any containerEnv values to layer specific env file
+	if feature.ContainerEnv != nil && len(feature.ContainerEnv) > 0 {
+		envFileContents := ""
+		for name, value := range feature.ContainerEnv {
+			// Swap out "containerEnv" values with normal variable strings
+			formattedValue := strings.ReplaceAll(value, "${containerEnv:", "${")
+			envFileContents += name + "=\"" + strings.ReplaceAll(formattedValue, "\"", "\\\"") + "\"\n"
+		}
+		// Write env file for feature layer - https://github.com/buildpacks/spec/blob/main/buildpack.md#provided-by-the-buildpacks
+		envFile, err := os.OpenFile(filepath.Join(targetLayerEnvPath, fullFeatureIdWithDashes+".env"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		envFile.WriteString(envFileContents)
+		envFile.Close()
+	}
 
 	return true, layer
 }
@@ -162,7 +165,8 @@ func updatePlanAndGetLayerForFeature(fullFeatureId string, plan *libcnb.Buildpac
 			log.Printf("Found entry for %s", fullFeatureId)
 			// Remove this entry from the plan
 			if len(plan.Entries) > 1 {
-				copy(plan.Entries[:i], plan.Entries[i+1:])
+				copy(plan.Entries[i:], plan.Entries[i+1:])
+				plan.Entries = plan.Entries[:len(plan.Entries)-1]
 			} else {
 				plan.Entries = []libcnb.BuildpackPlanEntry{}
 			}

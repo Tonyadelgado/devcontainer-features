@@ -72,7 +72,7 @@ func detectFeature(buildpackSettings libbuildpackify.BuildpackSettings, feature 
 
 	// TODO: Check environment to see if BP_DEV_CONTAINER_FEATURE_<feature.Id> is set
 	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
-	if os.Getenv("BP_DEV_CONTAINER_FEATURE_"+idSafe) != "" {
+	if os.Getenv("BP_CONTAINER_FEATURE_"+idSafe) != "" {
 		return true, provide, require
 	}
 
@@ -85,9 +85,10 @@ func detectFeature(buildpackSettings libbuildpackify.BuildpackSettings, feature 
 
 	// Execute the script
 	log.Printf("Executing %s\n", detectScriptPath)
+	env, _ := libbuildpackify.GetBuildEnvironment(feature, "")
 	logWriter := log.Writer()
 	detectCommand := exec.Command(detectScriptPath)
-	detectCommand.Env = os.Environ()
+	detectCommand.Env = env
 	detectCommand.Stdout = logWriter
 	detectCommand.Stderr = logWriter
 	if err := detectCommand.Run(); err != nil {

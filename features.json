@@ -33,6 +33,10 @@
 		{
 			"id": "packcli",
 			"name": "Buildpacks pack CLI",
+			"containerEnv": {
+				"TEST": "true",
+				"PATH": "${containerEnv:PATH}:/yes/it/worked"
+			},
 			"options": {
 				"version": {
 					"type": "string",
