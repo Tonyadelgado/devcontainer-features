@@ -30,6 +30,14 @@ func main() {
 	platformDir := os.Args[2]
 	planPath := os.Args[3]
 
+	// TODO: # 2. LOAD USER-PROVIDED BUILD-TIME ENVIRONMENT VARIABLES
+	/* if compgen -G "${env_dir}/*" > /dev/null; then
+		for var in ${env_dir}/*; do
+			declare "$(basename ${var})=$(<${var})"
+		done
+	fi
+	*/
+
 	log.Printf("Parameters:\n- Layers dir: %s\n- Platform dir: %s\n- Plan path: %s\n- CNB_BUILDPACK_DIR: %s\n", layersDir, platformDir, planPath, os.Getenv("CNB_BUILDPACK_DIR"))
 	log.Println("Env:", os.Environ())
 
@@ -136,19 +144,17 @@ func buildFeatureIfInPlan(buildpackSettings libbuildpackify.BuildpackSettings, f
 
 	// Add any containerEnv values to layer specific env file
 	if feature.ContainerEnv != nil && len(feature.ContainerEnv) > 0 {
-		envFileContents := ""
 		for name, value := range feature.ContainerEnv {
 			// Swap out "containerEnv" values with normal variable strings
 			formattedValue := strings.ReplaceAll(value, "${containerEnv:", "${")
-			envFileContents += name + "=\"" + strings.ReplaceAll(formattedValue, "\"", "\\\"") + "\"\n"
+			// Write env file for each variable layer - https://github.com/buildpacks/spec/blob/main/buildpack.md#provided-by-the-buildpacks
+			envFile, err := os.OpenFile(filepath.Join(targetLayerEnvPath, name), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+			if err != nil {
+				log.Fatal(err)
+			}
+			envFile.WriteString(os.ExpandEnv(formattedValue))
+			envFile.Close()
 		}
-		// Write env file for feature layer - https://github.com/buildpacks/spec/blob/main/buildpack.md#provided-by-the-buildpacks
-		envFile, err := os.OpenFile(filepath.Join(targetLayerEnvPath, fullFeatureIdWithDashes+".env"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-		if err != nil {
-			log.Fatal(err)
-		}
-		envFile.WriteString(envFileContents)
-		envFile.Close()
 	}
 
 	return true, layer
