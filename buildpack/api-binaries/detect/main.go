@@ -30,8 +30,8 @@ func main() {
 	log.Printf("Parameters:\n- Platform dir: %s\n- Plan path: %s\n- CNB_BUILDPACK_DIR: %s\n", platformDir, planPath, os.Getenv("CNB_BUILDPACK_DIR"))
 	log.Println("Env:", os.Environ())
 	// Load features.json, buildpack settings
-	featuresJson := libbuildpackify.LoadFeaturesJson()
-	buildpackSettings := libbuildpackify.LoadBuildpackSettings()
+	featuresJson := libbuildpackify.LoadFeaturesJson("")
+	buildpackSettings := libbuildpackify.LoadBuildpackSettings("")
 
 	// Load build plan.toml
 	var plan libcnb.BuildPlan

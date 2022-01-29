@@ -42,8 +42,8 @@ func main() {
 	log.Println("Env:", os.Environ())
 
 	// Load features.json, buildpack settings
-	featuresJson := libbuildpackify.LoadFeaturesJson()
-	buildpackSettings := libbuildpackify.LoadBuildpackSettings()
+	featuresJson := libbuildpackify.LoadFeaturesJson("")
+	buildpackSettings := libbuildpackify.LoadBuildpackSettings("")
 
 	// Load Buildpack Plan - https://github.com/buildpacks/spec/blob/main/buildpack.md#buildpack-plan-toml
 	var plan libcnb.BuildpackPlan

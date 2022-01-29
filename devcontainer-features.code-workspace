@@ -13,8 +13,20 @@
 			"path": "buildpack/libbuildpackify"
 		},
 		{
-			"name": "buildpack",
+			"name": "buildpackify (go module)",
+			"path": "buildpack/buildpackify"
+		},
+		{
 			"path": "buildpack"
+		},
+		{
+			"path": "builders"
+		},
+		{
+			"path": "features"
+		},
+		{
+			"path": "common"
 		},
 		{
 			"name": "repository root",
