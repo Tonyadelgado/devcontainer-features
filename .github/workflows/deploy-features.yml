@@ -18,6 +18,9 @@ jobs:
         uses: microsoft/publish-dev-container-features-action@main
         with:
           path-to-features: '.'
+          
+      - name: test
+        run: ls -l
 
       - name: Create release
         id: create_release
