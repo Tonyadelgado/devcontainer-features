@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch build command",
+            "name": "Build command",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -27,7 +27,7 @@
 			"preLaunchTask": "test-prep"
 		},
 		{
-            "name": "Launch detect command",
+            "name": "Detect command",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -46,6 +46,19 @@
 			},
 			"cwd": "${workspaceFolder}/../test/test-project",
 			"preLaunchTask": "test-prep"
+		},
+		{
+            "name": "Create command",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}",
+			"args": [
+				"create",
+				"${workspaceFolder}/../..",
+				"${workspaceFolder}/../test/out/buildpack"
+			],
+			"cwd": "${workspaceFolder}/../..",
 		}
     ]
 }

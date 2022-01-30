@@ -38,18 +38,20 @@ func main() {
 		outputPath = os.Args[3]
 	}
 	Create(featuresPath, outputPath)
-
 }
 
 func Create(featuresPath string, outputPath string) {
 	// Load features.json, buildpack settings
-	featuresJson := LoadFeaturesJson(filepath.Join(featuresPath, "features.json"))
-	buildpackSettings := LoadBuildpackSettings(filepath.Join(featuresPath, "buildpack-settings.json"))
+	featuresJson := LoadFeaturesJson(featuresPath)
+	buildpackSettings := LoadBuildpackSettings(featuresPath)
 
-	os.MkdirAll(filepath.Join(outputPath, "bin"), 0755)
+	os.MkdirAll(outputPath, 0755)
 	for _, sourcePath := range []string{"devcontainer-features.json", "features.json", "buildpack-settings.json", "features", "common"} {
 		cpR(filepath.Join(featuresPath, sourcePath), outputPath)
 	}
+
+	// TODO: Copy assets folder
+	// TODO: Copy binaries in dist folder
 
 	var buildpack libcnb.Buildpack
 	buildpack.Info = libcnb.BuildpackInfo{
@@ -68,7 +70,7 @@ func Create(featuresPath string, outputPath string) {
 	}
 	var featureNameList []string
 	for _, feature := range featuresJson.Features {
-		featureNameList = append(featureNameList, feature.Name)
+		featureNameList = append(featureNameList, feature.Id)
 	}
 	buildpack.Metadata = make(map[string]interface{})
 	buildpack.Metadata[featuresetMetadataId] = buildpackSettings
@@ -101,13 +103,9 @@ func cpR(sourcePath string, targetFolderPath string) {
 	}
 	for _, fileInfo := range fileInfos {
 		fromPath := filepath.Join(sourcePath, fileInfo.Name())
-		sourceFileInfo, err := os.Stat(fromPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		toPath := filepath.Join(targetFolderPath, fileInfo.Name())
+		toPath := filepath.Join(targetFolderPath, sourceFileInfo.Name(), fileInfo.Name())
 		if sourceFileInfo.IsDir() {
-			os.MkdirAll(toPath, sourceFileInfo.Mode())
+			os.MkdirAll(toPath, fileInfo.Mode())
 			cpR(fromPath, toPath)
 		} else {
 			cp(fromPath, toPath)
@@ -134,7 +132,7 @@ func cp(fromPath string, toPath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = io.Copy(sourceFile, targetFile)
+	_, err = io.Copy(targetFile, sourceFile)
 	if err != nil {
 		log.Fatal(err)
 	}
