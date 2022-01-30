@@ -15,10 +15,10 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 . ./common/utils.sh
 
 # The tooling will parse the features.json + user devcontainer, and write 
-# any build-time arguments into a feature-set scoped "features.env"
+# any build-time arguments into a feature-set scoped "devcontainer-features.env"
 # The author is free to source that file and use it however they would like.
 set -a
-. ./features.env
+. ./devcontainer-features.env
 set +a
 
 # Syntax: conditional_install <feature_id>
