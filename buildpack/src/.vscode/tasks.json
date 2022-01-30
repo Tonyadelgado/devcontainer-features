@@ -1,0 +1,12 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "test-prep",
+            "type": "shell",
+            "command": "${workspaceFolder}/../scripts/prep.sh '${workspaceFolder}/../test/out/buildpack/' && cp -f '${workspaceFolder}/../test/assets/buildpack.toml' '${workspaceFolder}/../test/out/buildpack/'"
+        }
+    ]
+}
