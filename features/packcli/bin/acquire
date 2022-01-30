@@ -9,11 +9,12 @@ FEATURE_ID="$(basename "${FEATURE_PATH}")"
 
 set_var_to_option_value "${FEATURE_ID}" target-path target_path "/usr/local"
 set_var_to_option_value "${FEATURE_ID}" version pack_cli_version "latest"
+find_version_from_git_tags pack_cli_version "https://github.com/buildpacks/pack"
 
 # Skip if already run with same args
 marker_path="${target_path}/etc/dev-container-features/github.com/chuxel/devcontainer-features/${FEATURE_ID}-${SCRIPT_NAME}.marker"
 if ! check_marker "${marker_path}" "${target_path}" "${pack_cli_version}"; then
-    echo "${SCRIPT_NAME} already run with these arguments. Skipping..."
+    echo "Pack CLI ${pack_cli_version} already installed. Skipping..."
     exit 0
 fi
 

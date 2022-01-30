@@ -30,17 +30,25 @@ func main() {
 
 	// Otherwise create the buildpack
 	featuresPath := "."
+	outputPath := "out"
 	if len(os.Args) > 2 {
 		featuresPath = os.Args[2]
 	}
+	if len(os.Args) > 3 {
+		outputPath = os.Args[3]
+	}
+	Create(featuresPath, outputPath)
+
+}
+
+func Create(featuresPath string, outputPath string) {
 	// Load features.json, buildpack settings
 	featuresJson := LoadFeaturesJson(filepath.Join(featuresPath, "features.json"))
 	buildpackSettings := LoadBuildpackSettings(filepath.Join(featuresPath, "buildpack-settings.json"))
 
-	tmpDir := os.TempDir()
-	os.MkdirAll(filepath.Join(tmpDir, "bin"), 0755)
+	os.MkdirAll(filepath.Join(outputPath, "bin"), 0755)
 	for _, sourcePath := range []string{"devcontainer-features.json", "features.json", "buildpack-settings.json", "features", "common"} {
-		cpR(filepath.Join(featuresPath, sourcePath), tmpDir)
+		cpR(filepath.Join(featuresPath, sourcePath), outputPath)
 	}
 
 	var buildpack libcnb.Buildpack
@@ -67,12 +75,11 @@ func main() {
 	buildpack.Metadata[featuresMetadataId] = featureNameList
 
 	// Write buildpack.toml - https://github.com/buildpacks/spec/blob/main/buildpack.md#buildpacktoml-toml
-	file, err := os.OpenFile(filepath.Join(tmpDir, "buildpack.toml"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	file, err := os.OpenFile(filepath.Join(outputPath, "buildpack.toml"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
 	toml.NewEncoder(file).Encode(buildpack)
-
 }
 
 func cpR(sourcePath string, targetFolderPath string) {

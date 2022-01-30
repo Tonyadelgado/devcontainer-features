@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -14,7 +15,7 @@ type NonZeroExitError struct {
 }
 
 func (err NonZeroExitError) Error() string {
-	return "Non-zero exit code: " + string(err.ExitCode)
+	return "Non-zero exit code: " + strconv.FormatInt(int64(err.ExitCode), 10)
 }
 
 type FeatureMount struct {
