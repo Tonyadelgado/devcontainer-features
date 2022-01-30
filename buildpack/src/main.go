@@ -11,8 +11,8 @@ func main() {
 	// No arguments is assumed to be "generate" to avoid confusion about the internal commands
 	if len(os.Args) > 1 && os.Args[1] != "generate" {
 		// If doing a build or detect command, pass of processing to FeatureBuilder, FeatureDetector respectively
-		os.Args = os.Args[1:]
-		libcnb.Main(FeatureDetector{}, FeatureBuilder{})
+		buildpackArguments := os.Args[1:]
+		libcnb.Main(FeatureDetector{}, FeatureBuilder{}, libcnb.WithArguments(buildpackArguments))
 		return
 	}
 

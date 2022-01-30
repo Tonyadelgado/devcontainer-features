@@ -20,5 +20,4 @@ if [ -e "${script_dir}/buildpackify-${arch}" ]; then
     exit $?
 fi
 
-go run "${script_dir}/.." build "$@"
-exit $?
+echo "Unable to find buildpackify binary for ${arch}!"

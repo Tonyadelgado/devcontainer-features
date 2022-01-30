@@ -5,7 +5,7 @@ buildpack_root="${script_dir}"/out/buildpack
 mkdir -p "${buildpack_root}"
 
 "${script_dir}"/../scripts/compile.sh
-"${script_dir}"/test-prep.sh
+"${script_dir}"/../buildpackify "${script_dir}"/../.. "${buildpack_root}"
 
 cd "${script_dir}/test-project"
 pack build -v test_image \

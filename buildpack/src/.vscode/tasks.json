@@ -4,9 +4,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "test-prep",
+            "label": "debug-prep",
             "type": "shell",
-            "command": "${workspaceFolder}/../scripts/test-prep.sh"
+            "command": "${workspaceFolder}/../test/debug-prep.sh"
         }
     ]
 }

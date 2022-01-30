@@ -5,7 +5,7 @@ case $arch in
     x86_64)
         arch=amd64
         ;;
-    armv8l, aarch64)
+    armv8l | aarch64)
         arch=arm64
         ;;
     *)
@@ -14,10 +14,14 @@ case $arch in
         ;;
 esac
 
-if [ -e "${script_dir}/buildpackify-$(arch)" ]; then
-    "${script_dir}/buildpackify-$(arch)" generate "$@"
+if [ -e "${script_dir}/buildpackify-${arch}" ]; then
+    "${script_dir}/buildpackify-${arch}" generate "$@"
     exit $?
 fi
 
-go run "${script_dir}/buildpackify" generate "$@"
-exit $?
+if [ -e "${script_dir}/dist/buildpackify-${arch}" ]; then
+    "${script_dir}/dist/buildpackify-${arch}" generate "$@"
+    exit $?
+fi
+
+echo "Unable to find buildpackify binary for ${arch}!"

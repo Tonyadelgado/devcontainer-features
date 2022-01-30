@@ -24,7 +24,7 @@
 				"BP_CONTAINER_FEATURE_BUILD_MODE": "devcontainer"
 			},
 			"cwd": "${workspaceFolder}/../test/test-project",
-			"preLaunchTask": "test-prep"
+			"preLaunchTask": "debug-prep"
 		},
 		{
             "name": "Detect command",
@@ -45,7 +45,7 @@
 				"BP_CONTAINER_FEATURE_BUILD_MODE": "devcontainer"
 			},
 			"cwd": "${workspaceFolder}/../test/test-project",
-			"preLaunchTask": "test-prep"
+			"preLaunchTask": "debug-prep"
 		},
 		{
             "name": "Generate command",

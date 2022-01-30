@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"syscall"
 
 	"github.com/BurntSushi/toml"
@@ -19,11 +21,11 @@ const idPrefix = "com.microsoft.devcontainer"
 const featuresetMetadataId = idPrefix + ".featureset"
 const featuresMetadataId = idPrefix + ".features"
 
-//go:embed assets/bin/build
-var buildScriptPayload []byte
-
-//go:embed assets/bin/detect
+//go:embed assets/bin/detect.sh
 var detectScriptPayload []byte
+
+//go:embed assets/bin/build.sh
+var buildScriptPayload []byte
 
 func Generate(featuresPath string, outputPath string) {
 	// Load features.json, buildpack settings
@@ -43,7 +45,26 @@ func Generate(featuresPath string, outputPath string) {
 		log.Fatal(err)
 	}
 
-	// TODO: Copy binaries from dist folder
+	// Copy all architecture versions of current executable, unless in debug mode where we should just copy this binary
+	currentExecutableName := filepath.Base(os.Args[0])
+	if strings.HasPrefix(currentExecutableName, "buildpackify") {
+		currentExecutablePath := filepath.Dir(os.Args[0])
+		fileInfos, err := ioutil.ReadDir(currentExecutablePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, fileInfo := range fileInfos {
+			if strings.HasPrefix(fileInfo.Name(), "buildpackify") {
+				cp(filepath.Join(currentExecutablePath, fileInfo.Name()), filepath.Join(outputPath, "bin"))
+			}
+		}
+	} else {
+		// This would typically happen when you are debugging where the file name will be different
+		cp(os.Args[0], filepath.Join(outputPath, "bin"))
+		if err := os.Rename(filepath.Join(outputPath, "bin", currentExecutableName), filepath.Join(outputPath, "bin", "buildpackify-"+runtime.GOARCH)); err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	var buildpack libcnb.Buildpack
 	buildpack.Info = libcnb.BuildpackInfo{
@@ -134,12 +155,12 @@ func cp(sourceFilePath string, targetFolderPath string) {
 	sourceFile.Close()
 }
 
-func writeFile(filename string, bytes []byte) error {
+func writeFile(filename string, fileBytes []byte) error {
 	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
-	if _, err = file.Write(buildScriptPayload); err != nil {
+	if _, err = file.Write(fileBytes); err != nil {
 		return err
 	}
 	if err = file.Close(); err != nil {
