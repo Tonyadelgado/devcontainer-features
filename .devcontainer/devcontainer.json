@@ -20,6 +20,8 @@
 	"features": {
 		"docker-in-docker": "latest",
 		"desktop-lite": "latest",
-		"golang": "latest"
+		"golang": "latest",
+		"node": "16",
+		"chuxel/devcontainer-features/packcli": "latest"
 	}
 }
