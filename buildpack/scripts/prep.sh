@@ -8,4 +8,4 @@ cp -rf ../features out/
 cp -rf ../common out/
 cp -f ../features.json out/
 cp -f ../buildpack-settings.json out/
-cp -f assets/* out/
+cp -rf assets/* out/

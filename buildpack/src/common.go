@@ -1,4 +1,4 @@
-package libbuildpackify
+package main
 
 import (
 	"encoding/json"
@@ -8,6 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+type NonZeroExitError struct {
+	ExitCode int
+}
+
+func (err NonZeroExitError) Error() string {
+	return "Non-zero exit code: " + string(err.ExitCode)
+}
 
 type FeatureMount struct {
 	Source string
@@ -119,8 +127,8 @@ func LoadDevContainerJson() DevContainerJson {
 	return jsonContents
 }
 
-func GetFeatureScriptPath(featureId string, script string) string {
-	return filepath.Join(os.Getenv("CNB_BUILDPACK_DIR"), "features", featureId, "bin", script)
+func GetFeatureScriptPath(buidpackPath string, featureId string, script string) string {
+	return filepath.Join(buidpackPath, "features", featureId, "bin", script)
 }
 
 func ContainerBuildContext() string {

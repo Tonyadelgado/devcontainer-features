@@ -8,22 +8,34 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/chuxel/buildpackify-features/libbuildpackify"
-
 	"github.com/BurntSushi/toml"
 	"github.com/buildpacks/libcnb"
 )
 
 const defaultApiVersion = "0.7"
+const idPrefix = "com.microsoft.devcontainer"
+const featuresetMetadataId = idPrefix + ".featureset"
+const featuresMetadataId = idPrefix + ".features"
 
 func main() {
+	if len(os.Args) < 2 {
+		log.Fatal("Missing command!\n\nUsage: buildpackify <create | build | detect>")
+	}
+	// If doing a build or detect command, pass of processing to FeatureBuilder, FeatureDetector respectively
+	if os.Args[1] != "create" {
+		os.Args = os.Args[1:]
+		libcnb.Main(FeatureDetector{}, FeatureBuilder{})
+		return
+	}
+
+	// Otherwise create the buildpack
 	featuresPath := "."
-	if len(os.Args) > 0 {
-		featuresPath = os.Args[1]
+	if len(os.Args) > 2 {
+		featuresPath = os.Args[2]
 	}
 	// Load features.json, buildpack settings
-	featuresJson := libbuildpackify.LoadFeaturesJson(filepath.Join(featuresPath, "features.json"))
-	buildpackSettings := libbuildpackify.LoadBuildpackSettings(filepath.Join(featuresPath, "buildpack-settings.json"))
+	featuresJson := LoadFeaturesJson(filepath.Join(featuresPath, "features.json"))
+	buildpackSettings := LoadBuildpackSettings(filepath.Join(featuresPath, "buildpack-settings.json"))
 
 	tmpDir := os.TempDir()
 	os.MkdirAll(filepath.Join(tmpDir, "bin"), 0755)
@@ -32,11 +44,16 @@ func main() {
 	}
 
 	var buildpack libcnb.Buildpack
+	buildpack.Info = libcnb.BuildpackInfo{
+		ID:      buildpackSettings.Publisher + "/" + buildpackSettings.FeatureSet,
+		Version: buildpackSettings.Version,
+	}
 	if buildpackSettings.ApiVersion != "" {
 		buildpack.API = buildpackSettings.ApiVersion
 	} else {
 		buildpack.API = defaultApiVersion
 	}
+
 	buildpack.Stacks = make([]libcnb.BuildpackStack, 0)
 	for _, stack := range buildpackSettings.Stacks {
 		buildpack.Stacks = append(buildpack.Stacks, libcnb.BuildpackStack{ID: stack})
@@ -46,9 +63,10 @@ func main() {
 		featureNameList = append(featureNameList, feature.Name)
 	}
 	buildpack.Metadata = make(map[string]interface{})
-	buildpack.Metadata["com.microsoft.devcontainer.featureset"] = buildpackSettings
-	buildpack.Metadata["com.microsoft.devcontainer.features"] = featureNameList
+	buildpack.Metadata[featuresetMetadataId] = buildpackSettings
+	buildpack.Metadata[featuresMetadataId] = featureNameList
 
+	// Write buildpack.toml - https://github.com/buildpacks/spec/blob/main/buildpack.md#buildpacktoml-toml
 	file, err := os.OpenFile(filepath.Join(tmpDir, "buildpack.toml"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatal(err)
