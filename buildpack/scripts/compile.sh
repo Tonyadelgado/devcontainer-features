@@ -7,11 +7,11 @@ build_api_binary()
     source="$1"
     binary_name="${2:-"${source}"}"
     cd "${root_path}/${source}"
-    GOARCH=amd64 GOOS=linux go build -o "${root_path}/out/bin/${binary_name}-amd64"
-    GOARCH=arm64 GOOS=linux go build -o "${root_path}/out/bin/${binary_name}-arm64"
+    GOARCH=amd64 GOOS=linux go build -o "${root_path}/dist/${binary_name}-amd64"
+    GOARCH=arm64 GOOS=linux go build -o "${root_path}/dist/${binary_name}-arm64"
 }
 
-mkdir -p out/bin
+mkdir -p "${root_path}"/dist/
 build_api_binary src buildpackify
-chmod +x "${root_path}/out/bin/"/*
+chmod +x "${root_path}"/dist/*
 

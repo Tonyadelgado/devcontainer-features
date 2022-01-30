@@ -6,7 +6,7 @@
         {
             "label": "test-prep",
             "type": "shell",
-            "command": "${workspaceFolder}/../scripts/prep.sh '${workspaceFolder}/../test/out/buildpack/' && cp -f '${workspaceFolder}/../test/assets/buildpack.toml' '${workspaceFolder}/../test/out/buildpack/'"
+            "command": "${workspaceFolder}/../scripts/test-prep.sh"
         }
     ]
 }

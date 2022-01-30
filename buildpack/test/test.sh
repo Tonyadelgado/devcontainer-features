@@ -1,9 +1,13 @@
 #!/bin/bash
 set -e
-cd "$(dirname "${BASH_SOURCE[0]}")"/..
-./scripts/build.sh
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+buildpack_root="${script_dir}"/out/buildpack
+mkdir -p "${buildpack_root}"
 
-buildpack_root="$(cd "out" && pwd)"
+"${script_dir}"/../scripts/compile.sh
+"${script_dir}"/test-prep.sh
+
+cd "${script_dir}/test-project"
 pack build -v test_image \
     -e "BP_CONTAINER_FEATURE_PACKCLI=true" \
     -e "BP_CONTAINER_FEATURE_GOOGLECHROME=true" \
