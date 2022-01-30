@@ -20,9 +20,6 @@ jobs:
         with:
           path-to-features: '.'
           
-      - name: test
-        run: ls -l
-
       - name: Create release
         id: create_release
         uses: actions/create-release@v1.0.0
@@ -41,7 +38,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./features.tgz
-          asset_name: features.tgz
+          asset_path: ./devcontainer-features.tgz
+          asset_name: devcontainer-features.tgz
           asset_content_type: application/gzip 
 
