@@ -15,9 +15,9 @@ case $arch in
 esac
 
 if [ -e "${script_dir}/buildpackify-$(arch)" ]; then
-    "${script_dir}/buildpackify-$(arch)" create "$@"
+    "${script_dir}/buildpackify-$(arch)" generate "$@"
     exit $?
 fi
 
-go run "${script_dir}/buildpackify" create "$@"
+go run "${script_dir}/buildpackify" generate "$@"
 exit $?

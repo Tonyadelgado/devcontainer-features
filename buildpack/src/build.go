@@ -29,17 +29,17 @@ type FeatureLayerContributor struct {
 
 // Implementation of libcnb.Builder.Build
 func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
-	log.Println("Context: ", context)
+	log.Println("Buildpack path: ", context.Buildpack.Path)
+	log.Println("Application path: ", context.Application.Path)
+	log.Println("Number of plan entries: ", len(context.Plan.Entries))
 	log.Println("Env: ", os.Environ())
 
 	var result libcnb.BuildResult
 
 	// Load features.json, buildpack settings
 	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
+	log.Println("Number of features in Buildpack: ", len(featuresJson.Features))
 	buildpackSettings := LoadBuildpackSettings(context.Buildpack.Path)
-
-	// Load Buildpack Plan - https://github.com/buildpacks/spec/blob/main/buildpack.md#buildpack-plan-toml
-	log.Printf("Plan entries: %d\n", len(context.Plan.Entries))
 
 	// Process each feature if it is in the buildpack plan in the order they appear in features.json
 	var metEntries []string
@@ -90,7 +90,7 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	acquireScriptPath := GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, "acquire")
 	_, err = os.Stat(acquireScriptPath)
 	if err != nil {
-		log.Printf("No acquire script for feature %s. Skipping.", fc.FullFeatureId())
+		log.Printf("- Skipping feature %s. No acquire script.", fc.FullFeatureId())
 		return layer, nil
 	}
 
@@ -98,7 +98,7 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	env, setOptions := GetBuildEnvironment(fc.Feature, layer.Path)
 
 	// Execute the script
-	log.Printf("Executing %s\n", acquireScriptPath)
+	log.Printf("- Executing %s\n", acquireScriptPath)
 	logWriter := log.Writer()
 	acquireCommand := exec.Command(acquireScriptPath)
 	acquireCommand.Env = env
@@ -150,7 +150,7 @@ func getLayerContributorForFeature(feature FeatureConfig, buildpackSettings Buil
 		// See if this entry is for this feature
 		fullFeatureId := layerContributor.FullFeatureId()
 		if entry.Name == fullFeatureId {
-			log.Printf("Found entry for %s", fullFeatureId)
+			log.Printf("- Entry for %s found", fullFeatureId)
 
 			// If entry metadata contains the build, Launch, or cache keys, set
 			// it on the LayerTypes object using reflection, otherwise set to true

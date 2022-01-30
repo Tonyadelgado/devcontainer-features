@@ -69,14 +69,9 @@ func LoadFeaturesJson(featuresPath string) FeaturesJson {
 	if featuresPath == "" {
 		featuresPath = os.Getenv("CNB_BUILDPACK_DIR")
 	}
-	var content []byte
-	var err error
-	content, err = ioutil.ReadFile(filepath.Join(featuresPath, "devcontainer-features.json"))
+	content, err := ioutil.ReadFile(filepath.Join(featuresPath, "devcontainer-features.json"))
 	if err != nil {
-		content, err = ioutil.ReadFile(filepath.Join(featuresPath, "features.json"))
-		if err != nil {
-			log.Fatal(err)
-		}
+		log.Fatal(err)
 	}
 	var featuresJson FeaturesJson
 	err = json.Unmarshal(content, &featuresJson)
@@ -104,17 +99,18 @@ func LoadBuildpackSettings(featuresPath string) BuildpackSettings {
 	return jsonContents
 }
 
-func LoadDevContainerJson() DevContainerJson {
+func LoadDevContainerJson(sourceFolder string) DevContainerJson {
 	// Load devcontainer.json
-	var content []byte
-	var err error
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
+	if sourceFolder == "" {
+		var err error
+		sourceFolder, err = os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-	content, err = ioutil.ReadFile(filepath.Join(cwd, "devcontainer", "devcontainer.json"))
+	content, err := ioutil.ReadFile(filepath.Join(sourceFolder, "devcontainer", "devcontainer.json"))
 	if err != nil {
-		content, err = ioutil.ReadFile(filepath.Join(cwd, ".devcontainer.json"))
+		content, err = ioutil.ReadFile(filepath.Join(sourceFolder, ".devcontainer.json"))
 		if err != nil {
 			log.Fatal(err)
 		}

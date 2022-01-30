@@ -16,13 +16,15 @@ type FeatureDetector struct {
 
 // Implementation of libcnb.Detector.Detect
 func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error) {
-	log.Println("Context: ", context)
+	log.Println("Buildpack path: ", context.Buildpack.Path)
+	log.Println("Application path: ", context.Application.Path)
 	log.Println("Env: ", os.Environ())
 
 	var result libcnb.DetectResult
 
 	// Load features.json, buildpack settings
 	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
+	log.Println("Number of features in Buildpack: ", len(featuresJson.Features))
 	buildpackSettings := LoadBuildpackSettings(context.Buildpack.Path)
 
 	// See if should provide any features
@@ -33,7 +35,7 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 			return result, err
 		}
 		if detected {
-			log.Printf("Feature %s detected\n", feature.Id)
+			log.Printf("- %s detected\n", feature.Id)
 			plan.Provides = append(plan.Provides, provide)
 			plan.Requires = append(plan.Requires, require)
 		}
@@ -71,7 +73,7 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSett
 	}
 
 	// Execute the script
-	log.Printf("Executing %s\n", detectScriptPath)
+	log.Printf("- Executing %s\n", detectScriptPath)
 	env, _ := GetBuildEnvironment(feature, "")
 	logWriter := log.Writer()
 	detectCommand := exec.Command(detectScriptPath)
