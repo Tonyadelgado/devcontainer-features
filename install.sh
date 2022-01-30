@@ -10,10 +10,10 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # The tooling will parse the features.json + user devcontainer, and write 
-# any build-time arguments into a feature-set scoped "features.env"
+# any build-time arguments into a feature-set scoped "devcontainer-features.env"
 # The author is free to source that file and use it however they would like.
 set -a
-. ./features.env
+. ./devcontainer-features.env
 set +a
 
 # Source utilities
