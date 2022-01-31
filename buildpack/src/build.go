@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"os/exec"
@@ -25,6 +26,7 @@ type FeatureLayerContributor struct {
 	BuildpackSettings BuildpackSettings
 	LayerTypes        libcnb.LayerTypes
 	Context           libcnb.BuildContext
+	OptionSelections  map[string]string
 }
 
 // Implementation of libcnb.Builder.Build
@@ -42,12 +44,10 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	buildpackSettings := LoadBuildpackSettings(context.Buildpack.Path)
 
 	// Process each feature if it is in the buildpack plan in the order they appear in features.json
-	var metEntries []string
 	for _, feature := range featuresJson.Features {
 		shouldAddLayer, layerContributor := getLayerContributorForFeature(feature, buildpackSettings, context.Plan)
 		if shouldAddLayer {
 			layerContributor.Context = context
-			metEntries = append(metEntries, layerContributor.FullFeatureId())
 			result.Layers = append(result.Layers, layerContributor)
 			// TODO: Handle entrypoints? Or leave this to devcontainer CLI?
 		}
@@ -55,8 +55,8 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	// Generate any unmet entries
 	for _, entry := range context.Plan.Entries {
 		met := false
-		for _, metEntry := range metEntries {
-			if entry.Name == metEntry {
+		for _, layer := range result.Layers {
+			if entry.Name == layer.(FeatureLayerContributor).FullFeatureId() {
 				met = true
 				break
 			}
@@ -68,7 +68,23 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	log.Printf("Number of layer contributors: %d", len(result.Layers))
 	log.Printf("Unmet entries: %d", len(result.Unmet))
 
-	// TODO: Write launch.toml with label metadata (from layers) to indicate which features should be processed by devcontainer CLI
+	// Write label metadata (from layers) to indicate which features should be processed by devcontainer CLI
+	label := libcnb.Label{Key: AppliedFeaturesLabelId}
+	optionSelections := make(map[string]map[string]string)
+	for _, layer := range result.Layers {
+		contributor := layer.(FeatureLayerContributor)
+		idAndVersion := contributor.FullFeatureId() + "@" + buildpackSettings.Version
+		optionSelections[idAndVersion] = make(map[string]string)
+		for option, selection := range contributor.OptionSelections {
+			optionSelections[idAndVersion][option] = selection
+		}
+	}
+	labelBytes, err := json.Marshal(optionSelections)
+	if err != nil {
+		return result, err
+	}
+	label.Value = string(labelBytes)
+	result.Labels = append(result.Labels, label)
 	return result, nil
 }
 
@@ -115,26 +131,27 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 		return layer, NonZeroExitError{ExitCode: exitCode}
 	}
 
-	// Add ID and options to layer metadata
+	// Add ID and option selections to layer metadata, add to LayerContributor
 	layer.Metadata = make(map[string]interface{})
 	layer.Metadata["id"] = fc.FullFeatureId()
 	for name, value := range setOptions {
 		layer.Metadata[name] = value
+		fc.OptionSelections[name] = value
 	}
 
-	//TODO: Handle containerEnv?
-	/* Since containerEnv can contain values that reference other variables,
-		leave processing to after the script has executed already.
-
-	// Add any containerEnv values to layer specific env file
+	//TODO: Handle containerEnv? This only works if the buildpack entrypoint is used - problem for SSH
 	if fc.Feature.ContainerEnv != nil && len(fc.Feature.ContainerEnv) > 0 {
 		for name, value := range fc.Feature.ContainerEnv {
-			// Swap out "containerEnv" values with normal variable strings
-			formattedValue := strings.ReplaceAll(value, "${containerEnv:", "${")
-			layer.SharedEnvironment[name] = os.ExpandEnv(formattedValue)
+			before, after, overwrite := processEnvVar(name, value, fc.Feature.ContainerEnv)
+			if before != "" || after != "" {
+				layer.SharedEnvironment.Prepend(name, before)
+				layer.SharedEnvironment.Prepend(name, overwrite)
+				layer.SharedEnvironment.Append(name, after)
+			} else {
+				layer.SharedEnvironment.Override(name, overwrite)
+			}
 		}
 	}
-	*/
 
 	// Finally, update layer types based on what was detected when created
 	layer.LayerTypes = fc.LayerTypes
@@ -172,4 +189,30 @@ func getLayerContributorForFeature(feature FeatureConfig, buildpackSettings Buil
 	}
 
 	return false, layerContributor
+}
+
+func processEnvVar(name string, value string, envVars map[string]string) (string, string, string) {
+	before := ""
+	after := ""
+	overwrite := ""
+
+	// Handle self-referencing
+	selfReplaceString := "${containerEnv:" + name + "}"
+	selfRefIndex := strings.Index(value, selfReplaceString)
+	if selfRefIndex > -1 {
+		before = value[:selfRefIndex]
+		after = value[selfRefIndex+len(selfReplaceString):]
+	} else {
+		overwrite = value
+	}
+
+	// Replace other variables set
+	for otherVarName, otherVarValue := range envVars {
+		replaceString := "${containerEnv:" + otherVarName + "}"
+		before = strings.ReplaceAll(before, replaceString, otherVarValue)
+		after = strings.ReplaceAll(after, replaceString, otherVarValue)
+		overwrite = strings.ReplaceAll(overwrite, replaceString, otherVarValue)
+	}
+
+	return before, after, overwrite
 }

@@ -16,11 +16,6 @@ import (
 	_ "embed"
 )
 
-const defaultApiVersion = "0.7"
-const idPrefix = "com.microsoft.devcontainer"
-const featuresetMetadataId = idPrefix + ".featureset"
-const featuresMetadataId = idPrefix + ".features"
-
 //go:embed assets/bin/detect.sh
 var detectScriptPayload []byte
 
@@ -74,7 +69,7 @@ func Generate(featuresPath string, outputPath string) {
 	if buildpackSettings.ApiVersion != "" {
 		buildpack.API = buildpackSettings.ApiVersion
 	} else {
-		buildpack.API = defaultApiVersion
+		buildpack.API = DefaultApiVersion
 	}
 
 	buildpack.Stacks = make([]libcnb.BuildpackStack, 0)
@@ -86,8 +81,8 @@ func Generate(featuresPath string, outputPath string) {
 		featureNameList = append(featureNameList, feature.Id)
 	}
 	buildpack.Metadata = make(map[string]interface{})
-	buildpack.Metadata[featuresetMetadataId] = buildpackSettings
-	buildpack.Metadata[featuresMetadataId] = featureNameList
+	buildpack.Metadata[FeaturesetMetadataId] = buildpackSettings
+	buildpack.Metadata[FeaturesMetadataId] = featureNameList
 
 	// Write buildpack.toml - https://github.com/buildpacks/spec/blob/main/buildpack.md#buildpacktoml-toml
 	file, err := os.OpenFile(filepath.Join(outputPath, "buildpack.toml"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)

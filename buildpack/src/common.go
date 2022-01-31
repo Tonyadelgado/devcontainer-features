@@ -10,6 +10,12 @@ import (
 	"strings"
 )
 
+const DefaultApiVersion = "0.7"
+const MetadataIdPrefix = "com.microsoft.devcontainer"
+const FeaturesetMetadataId = "featureset"
+const FeaturesMetadataId = "features"
+const AppliedFeaturesLabelId = MetadataIdPrefix + ".features"
+
 type NonZeroExitError struct {
 	ExitCode int
 }

@@ -35,7 +35,8 @@
 			"name": "Buildpacks pack CLI",
 			"containerEnv": {
 				"TEST": "true",
-				"PATH": "${containerEnv:PATH}:/yes/it/worked"
+				"PATH": "${containerEnv:PATH}:/yes/it/worked",
+				"TEST2": "${containerEnv:TEST}"
 			},
 			"options": {
 				"version": {
