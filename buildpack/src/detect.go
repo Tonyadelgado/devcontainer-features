@@ -74,7 +74,8 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSett
 
 	// Execute the script
 	log.Printf("- Executing %s\n", detectScriptPath)
-	env, _ := GetBuildEnvironment(feature, "")
+	optionSelections := GetOptionSelections(feature)
+	env := GetBuildEnvironment(feature, optionSelections, "")
 	logWriter := log.Writer()
 	detectCommand := exec.Command(detectScriptPath)
 	detectCommand.Env = env

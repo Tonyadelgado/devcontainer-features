@@ -21,6 +21,7 @@
 				"CNB_STACK_ID": "com.chuxel.stacks.test.bionic",
 				"CNB_BUILDPACK_DIR":"${workspaceFolder}/../test/out/buildpack",
 				"BP_CONTAINER_FEATURE_PACKCLI": "true",
+				"BP_CONTAINER_FEATURE_PACKCLI_VERSION": "0.23.0",
 				"BP_CONTAINER_FEATURE_BUILD_MODE": "devcontainer"
 			},
 			"cwd": "${workspaceFolder}/../test/test-project",

@@ -45,7 +45,8 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 
 	// Process each feature if it is in the buildpack plan in the order they appear in features.json
 	for _, feature := range featuresJson.Features {
-		shouldAddLayer, layerContributor := getLayerContributorForFeature(feature, buildpackSettings, context.Plan)
+		optionSelections := GetOptionSelections(feature)
+		shouldAddLayer, layerContributor := getLayerContributorForFeature(feature, buildpackSettings, optionSelections, context.Plan)
 		if shouldAddLayer {
 			layerContributor.Context = context
 			result.Layers = append(result.Layers, layerContributor)
@@ -70,16 +71,17 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 
 	// Write label metadata (from layers) to indicate which features should be processed by devcontainer CLI
 	label := libcnb.Label{Key: AppliedFeaturesLabelId}
-	optionSelections := make(map[string]map[string]string)
+	allFeatureOptionSelections := make(map[string]map[string]string)
 	for _, layer := range result.Layers {
 		contributor := layer.(FeatureLayerContributor)
 		idAndVersion := contributor.FullFeatureId() + "@" + buildpackSettings.Version
-		optionSelections[idAndVersion] = make(map[string]string)
-		for option, selection := range contributor.OptionSelections {
-			optionSelections[idAndVersion][option] = selection
+		if contributor.OptionSelections != nil {
+			allFeatureOptionSelections[idAndVersion] = contributor.OptionSelections
+		} else {
+			allFeatureOptionSelections[idAndVersion] = make(map[string]string)
 		}
 	}
-	labelBytes, err := json.Marshal(optionSelections)
+	labelBytes, err := json.Marshal(allFeatureOptionSelections)
 	if err != nil {
 		return result, err
 	}
@@ -111,7 +113,7 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	}
 
 	// Get build environment based on set options
-	env, setOptions := GetBuildEnvironment(fc.Feature, layer.Path)
+	env := GetBuildEnvironment(fc.Feature, fc.OptionSelections, layer.Path)
 
 	// Execute the script
 	log.Printf("- Executing %s\n", acquireScriptPath)
@@ -134,9 +136,8 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	// Add ID and option selections to layer metadata, add to LayerContributor
 	layer.Metadata = make(map[string]interface{})
 	layer.Metadata["id"] = fc.FullFeatureId()
-	for name, value := range setOptions {
+	for name, value := range fc.OptionSelections {
 		layer.Metadata[name] = value
-		fc.OptionSelections[name] = value
 	}
 
 	//TODO: Handle containerEnv? This only works if the buildpack entrypoint is used - problem for SSH
@@ -160,8 +161,8 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 }
 
 // See if the build plan includes an entry for this feature. If so, return a LayerContributor for it
-func getLayerContributorForFeature(feature FeatureConfig, buildpackSettings BuildpackSettings, plan libcnb.BuildpackPlan) (bool, FeatureLayerContributor) {
-	layerContributor := FeatureLayerContributor{Feature: feature, BuildpackSettings: buildpackSettings}
+func getLayerContributorForFeature(feature FeatureConfig, buildpackSettings BuildpackSettings, optionSelections map[string]string, plan libcnb.BuildpackPlan) (bool, FeatureLayerContributor) {
+	layerContributor := FeatureLayerContributor{Feature: feature, BuildpackSettings: buildpackSettings, OptionSelections: optionSelections}
 	// See if detect said should provide this feature
 	for _, entry := range plan.Entries {
 		// See if this entry is for this feature

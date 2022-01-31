@@ -142,7 +142,24 @@ func ContainerBuildContext() string {
 	return context
 }
 
-func GetBuildEnvironment(feature FeatureConfig, targetLayerPath string) ([]string, map[string]string) {
+func GetOptionSelections(feature FeatureConfig) map[string]string {
+	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
+	optionSelections := make(map[string]string)
+
+	// TODO: Inspect devcontainer.json if present to find options
+
+	// Look for BP_CONTAINER_FEATURE_<feature.Id>_<option> environment variables, convert
+	for optionName := range feature.Options {
+		optionNameSafe := strings.ReplaceAll(strings.ToUpper(optionName), "-", "_")
+		optionValue := os.Getenv("BP_CONTAINER_FEATURE_" + idSafe + "_" + optionNameSafe)
+		if optionValue != "" {
+			optionSelections[optionName] = optionValue
+		}
+	}
+	return optionSelections
+}
+
+func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]string, targetLayerPath string) []string {
 	// Create environment that includes feature build args
 	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
 	optionEnvVarPrefix := "_BUILD_ARG_" + idSafe
@@ -152,19 +169,10 @@ func GetBuildEnvironment(feature FeatureConfig, targetLayerPath string) ([]strin
 	if targetLayerPath != "" {
 		env = append(env, optionEnvVarPrefix+"_TARGET_PATH="+targetLayerPath)
 	}
-
-	setOptions := make(map[string]string)
-
-	// TODO: Inspect devcontainer.json if present to find options
-
-	// Look for BP_CONTAINER_FEATURE_<feature.Id>_<option> environment variables, convert
-	for optionName := range feature.Options {
-		optionNameSafe := strings.ReplaceAll(strings.ToUpper(optionName), "-", "_")
-		optionValue := os.Getenv("BP_DEV_CONTAINER_FEATURE_" + idSafe + "_" + optionNameSafe)
-		if optionValue != "" {
-			env = append(env, optionEnvVarPrefix+"_"+optionName+"=\""+optionValue+"\"")
-			setOptions[optionName] = optionValue
+	for option, selection := range optionSelections {
+		if selection != "" {
+			env = append(env, optionEnvVarPrefix+"_"+strings.ToUpper(option)+"="+selection)
 		}
 	}
-	return env, setOptions
+	return env
 }
