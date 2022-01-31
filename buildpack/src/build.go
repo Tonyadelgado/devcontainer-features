@@ -145,9 +145,8 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 		for name, value := range fc.Feature.ContainerEnv {
 			before, after, overwrite := processEnvVar(name, value, fc.Feature.ContainerEnv)
 			if before != "" || after != "" {
-				layer.SharedEnvironment.Prepend(name, before)
-				layer.SharedEnvironment.Prepend(name, overwrite)
-				layer.SharedEnvironment.Append(name, after)
+				layer.SharedEnvironment.Prepend(name, "", before)
+				layer.SharedEnvironment.Append(name, "", after)
 			} else {
 				layer.SharedEnvironment.Override(name, overwrite)
 			}
@@ -209,10 +208,12 @@ func processEnvVar(name string, value string, envVars map[string]string) (string
 
 	// Replace other variables set
 	for otherVarName, otherVarValue := range envVars {
-		replaceString := "${containerEnv:" + otherVarName + "}"
-		before = strings.ReplaceAll(before, replaceString, otherVarValue)
-		after = strings.ReplaceAll(after, replaceString, otherVarValue)
-		overwrite = strings.ReplaceAll(overwrite, replaceString, otherVarValue)
+		if otherVarName != name {
+			replaceString := "${containerEnv:" + otherVarName + "}"
+			before = strings.ReplaceAll(before, replaceString, otherVarValue)
+			after = strings.ReplaceAll(after, replaceString, otherVarValue)
+			overwrite = strings.ReplaceAll(overwrite, replaceString, otherVarValue)
+		}
 	}
 
 	return before, after, overwrite
