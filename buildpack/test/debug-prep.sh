@@ -6,7 +6,8 @@ features_root="${script_dir}"/../..
 mkdir -p "${buildpack_root}"/bin
 
 # Copy binaries and scripts
-cp -rf "${script_dir}"/../src/assets/* "${buildpack_root}"/
+cp -f "${script_dir}"/../src/assets/bin/build.sh "${buildpack_root}"/bin/build
+cp -f "${script_dir}"/../src/assets/bin/detect.sh "${buildpack_root}"/bin/detect
 cp -f "${script_dir}"/../dist/* "${buildpack_root}"/bin/
 
 # Copy test features
