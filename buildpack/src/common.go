@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -15,6 +16,8 @@ const MetadataIdPrefix = "com.microsoft.devcontainer"
 const FeaturesetMetadataId = "featureset"
 const FeaturesMetadataId = "features"
 const AppliedFeaturesLabelId = MetadataIdPrefix + ".features"
+
+var devcontainerJsonCache map[string]DevContainerJson
 
 type NonZeroExitError struct {
 	ExitCode int
@@ -105,29 +108,36 @@ func LoadBuildpackSettings(featuresPath string) BuildpackSettings {
 	return jsonContents
 }
 
-func LoadDevContainerJson(sourceFolder string) DevContainerJson {
+func LoadDevContainerJson(applicationFolder string) DevContainerJson {
+	// If we've already loaded devcontainer.json, load it
+	devContainerJson, mapContainsKey := devcontainerJsonCache[applicationFolder]
+	if mapContainsKey {
+		return devContainerJson
+	}
+
 	// Load devcontainer.json
-	if sourceFolder == "" {
+	if applicationFolder == "" {
 		var err error
-		sourceFolder, err = os.Getwd()
+		applicationFolder, err = os.Getwd()
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-	content, err := ioutil.ReadFile(filepath.Join(sourceFolder, "devcontainer", "devcontainer.json"))
-	if err != nil {
-		content, err = ioutil.ReadFile(filepath.Join(sourceFolder, ".devcontainer.json"))
-		if err != nil {
-			log.Fatal(err)
+	content, dotDevContainerFolderErr := ioutil.ReadFile(filepath.Join(applicationFolder, "devcontainer", "devcontainer.json"))
+	if dotDevContainerFolderErr != nil && os.IsNotExist(dotDevContainerFolderErr) {
+		var dotDevContainerFileErr error
+		content, dotDevContainerFileErr = ioutil.ReadFile(filepath.Join(applicationFolder, ".devcontainer.json"))
+		if dotDevContainerFileErr != nil && os.IsNotExist(dotDevContainerFileErr) {
+			log.Println("Folder", applicationFolder, "does not contain a .devcontainer folder / .devcontainer.json file")
+			return devContainerJson
 		}
 	}
-	var jsonContents DevContainerJson
-	err = json.Unmarshal(content, &jsonContents)
+	err := json.Unmarshal(content, &devContainerJson)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return jsonContents
+	return devContainerJson
 }
 
 func GetFeatureScriptPath(buidpackPath string, featureId string, script string) string {
@@ -142,13 +152,28 @@ func ContainerBuildContext() string {
 	return context
 }
 
-func GetOptionSelections(feature FeatureConfig) map[string]string {
-	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
+func GetOptionSelections(feature FeatureConfig, buildpackSettings BuildpackSettings, devContainerJson DevContainerJson) map[string]string {
 	optionSelections := make(map[string]string)
 
-	// TODO: Inspect devcontainer.json if present to find options
+	// Parse devcontainer.json features if file is found
+	fullFeatureId := GetFullFeatureId(feature, buildpackSettings)
+	for featureName, jsonOptionSelections := range devContainerJson.Features {
+		if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
+			if reflect.TypeOf(jsonOptionSelections).String() == "string" {
+				optionSelections["version"] = jsonOptionSelections.(string)
+			} else {
+				// Use reflection to convert the interface to a map[string]interface{} to a map[string]string
+				mapRange := reflect.ValueOf(jsonOptionSelections).MapRange()
+				for mapRange.Next() {
+					optionSelections[mapRange.Key().String()] = mapRange.Value().Elem().String()
+				}
+			}
+			break
+		}
+	}
 
 	// Look for BP_CONTAINER_FEATURE_<feature.Id>_<option> environment variables, convert
+	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
 	for optionName := range feature.Options {
 		optionNameSafe := strings.ReplaceAll(strings.ToUpper(optionName), "-", "_")
 		optionValue := os.Getenv("BP_CONTAINER_FEATURE_" + idSafe + "_" + optionNameSafe)
@@ -175,4 +200,9 @@ func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]stri
 		}
 	}
 	return env
+}
+
+// e.g. chuxel/devcontainer/features/packcli
+func GetFullFeatureId(feature FeatureConfig, buildpackSettings BuildpackSettings) string {
+	return buildpackSettings.Publisher + "/" + buildpackSettings.FeatureSet + "/" + feature.Id
 }

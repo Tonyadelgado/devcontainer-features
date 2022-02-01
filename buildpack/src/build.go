@@ -31,21 +31,22 @@ type FeatureLayerContributor struct {
 
 // Implementation of libcnb.Builder.Build
 func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
-	log.Println("Buildpack path: ", context.Buildpack.Path)
-	log.Println("Application path: ", context.Application.Path)
-	log.Println("Number of plan entries: ", len(context.Plan.Entries))
-	log.Println("Env: ", os.Environ())
+	log.Println("Buildpack path:", context.Buildpack.Path)
+	log.Println("Application path:", context.Application.Path)
+	log.Println("Number of plan entries:", len(context.Plan.Entries))
+	log.Println("Env:", os.Environ())
 
 	var result libcnb.BuildResult
 
-	// Load features.json, buildpack settings
-	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
-	log.Println("Number of features in Buildpack: ", len(featuresJson.Features))
+	// Load devcontainer.json, features.json, buildpack settings
+	devContainerJson := LoadDevContainerJson(context.Application.Path)
 	buildpackSettings := LoadBuildpackSettings(context.Buildpack.Path)
+	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
+	log.Println("Number of features in Buildpack:", len(featuresJson.Features))
 
 	// Process each feature if it is in the buildpack plan in the order they appear in features.json
 	for _, feature := range featuresJson.Features {
-		optionSelections := GetOptionSelections(feature)
+		optionSelections := GetOptionSelections(feature, buildpackSettings, devContainerJson)
 		shouldAddLayer, layerContributor := getLayerContributorForFeature(feature, buildpackSettings, optionSelections, context.Plan)
 		if shouldAddLayer {
 			layerContributor.Context = context
@@ -91,8 +92,7 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 }
 
 func (fc FeatureLayerContributor) FullFeatureId() string {
-	// e.g. chuxel/devcontainer/features/packcli
-	return fc.BuildpackSettings.Publisher + "/" + fc.BuildpackSettings.FeatureSet + "/" + fc.Feature.Id
+	return GetFullFeatureId(fc.Feature, fc.BuildpackSettings)
 }
 
 // Implementation of libcnb.LayerContributor.Name

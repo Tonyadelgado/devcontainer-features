@@ -16,21 +16,22 @@ type FeatureDetector struct {
 
 // Implementation of libcnb.Detector.Detect
 func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error) {
-	log.Println("Buildpack path: ", context.Buildpack.Path)
-	log.Println("Application path: ", context.Application.Path)
-	log.Println("Env: ", os.Environ())
+	log.Println("Buildpack path:", context.Buildpack.Path)
+	log.Println("Application path:", context.Application.Path)
+	log.Println("Env:", os.Environ())
 
 	var result libcnb.DetectResult
 
 	// Load features.json, buildpack settings
-	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
-	log.Println("Number of features in Buildpack: ", len(featuresJson.Features))
+	devContainerJson := LoadDevContainerJson(context.Application.Path)
 	buildpackSettings := LoadBuildpackSettings(context.Buildpack.Path)
+	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
+	log.Println("Number of features in Buildpack:", len(featuresJson.Features))
 
 	// See if should provide any features
 	var plan libcnb.BuildPlan
 	for _, feature := range featuresJson.Features {
-		detected, provide, require, err := detectFeature(context, buildpackSettings, feature)
+		detected, provide, require, err := detectFeature(context, buildpackSettings, feature, devContainerJson)
 		if err != nil {
 			return result, err
 		}
@@ -51,7 +52,7 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 	return result, nil
 }
 
-func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSettings, feature FeatureConfig) (bool, libcnb.BuildPlanProvide, libcnb.BuildPlanRequire, error) {
+func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSettings, feature FeatureConfig, devContainerJson DevContainerJson) (bool, libcnb.BuildPlanProvide, libcnb.BuildPlanRequire, error) {
 	// e.g. chuxel/devcontainer/features/packcli
 	fullFeatureId := buildpackSettings.Publisher + "/" + buildpackSettings.FeatureSet + "/" + feature.Id
 	provide := libcnb.BuildPlanProvide{Name: fullFeatureId}
@@ -74,7 +75,7 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSett
 
 	// Execute the script
 	log.Printf("- Executing %s\n", detectScriptPath)
-	optionSelections := GetOptionSelections(feature)
+	optionSelections := GetOptionSelections(feature, buildpackSettings, devContainerJson)
 	env := GetBuildEnvironment(feature, optionSelections, "")
 	logWriter := log.Writer()
 	detectCommand := exec.Command(detectScriptPath)

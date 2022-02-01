@@ -1,0 +1,8 @@
+{
+	"features": {
+		"docker-in-docker": "latest",
+		"chuxel/devcontainer-features/packcli": {
+			"version": "0.20.0"
+		}
+	}
+}
