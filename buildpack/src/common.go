@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 const DefaultApiVersion = "0.7"
@@ -16,8 +18,6 @@ const MetadataIdPrefix = "com.microsoft.devcontainer"
 const FeaturesetMetadataId = "featureset"
 const FeaturesMetadataId = "features"
 const AppliedFeaturesLabelId = MetadataIdPrefix + ".features"
-
-var devcontainerJsonCache map[string]DevContainerJson
 
 type NonZeroExitError struct {
 	ExitCode int
@@ -108,13 +108,7 @@ func LoadBuildpackSettings(featuresPath string) BuildpackSettings {
 	return jsonContents
 }
 
-func LoadDevContainerJson(applicationFolder string) DevContainerJson {
-	// If we've already loaded devcontainer.json, load it
-	devContainerJson, mapContainsKey := devcontainerJsonCache[applicationFolder]
-	if mapContainsKey {
-		return devContainerJson
-	}
-
+func FindDevContainerJson(applicationFolder string) string {
 	// Load devcontainer.json
 	if applicationFolder == "" {
 		var err error
@@ -123,28 +117,63 @@ func LoadDevContainerJson(applicationFolder string) DevContainerJson {
 			log.Fatal(err)
 		}
 	}
-	content, dotDevContainerFolderErr := ioutil.ReadFile(filepath.Join(applicationFolder, "devcontainer", "devcontainer.json"))
-	if dotDevContainerFolderErr != nil && os.IsNotExist(dotDevContainerFolderErr) {
-		var dotDevContainerFileErr error
-		content, dotDevContainerFileErr = ioutil.ReadFile(filepath.Join(applicationFolder, ".devcontainer.json"))
-		if dotDevContainerFileErr != nil && os.IsNotExist(dotDevContainerFileErr) {
-			log.Println("Folder", applicationFolder, "does not contain a .devcontainer folder / .devcontainer.json file")
-			return devContainerJson
+
+	expectedPath := filepath.Join(applicationFolder, ".devcontainer", "devcontainer.json")
+	if _, err := os.Stat(expectedPath); err != nil {
+		// if file does not exist, try .devcontainer.json instead
+		if os.IsNotExist(err) {
+			expectedPath = filepath.Join(applicationFolder, ".devcontainer.json")
+			if _, err := os.Stat(expectedPath); err != nil {
+				if !os.IsNotExist(err) {
+					log.Fatal(err)
+				}
+				return ""
+			}
+		} else {
+			log.Fatal(err)
 		}
 	}
+	return expectedPath
+}
+
+func loadDevContainerJsonConent(applicationFolder string) ([]byte, string) {
+	devContainerJsonPath := FindDevContainerJson(applicationFolder)
+	if devContainerJsonPath == "" {
+		return []byte{}, devContainerJsonPath
+	}
+
+	content, err := ioutil.ReadFile(devContainerJsonPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return content, devContainerJsonPath
+}
+
+func LoadDevContainerJson(applicationFolder string) (DevContainerJson, string) {
+	var devContainerJson DevContainerJson
+	content, devContainerJsonPath := loadDevContainerJsonConent(applicationFolder)
 	err := json.Unmarshal(content, &devContainerJson)
 	if err != nil {
 		log.Fatal(err)
 	}
+	return devContainerJson, devContainerJsonPath
+}
 
-	return devContainerJson
+func LoadDevContainerJsonAsMap(applicationFolder string) (map[string]json.RawMessage, string) {
+	var jsonMap map[string]json.RawMessage
+	content, devContainerJsonPath := loadDevContainerJsonConent(applicationFolder)
+	err := json.Unmarshal(content, &jsonMap)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return jsonMap, devContainerJsonPath
 }
 
 func GetFeatureScriptPath(buidpackPath string, featureId string, script string) string {
 	return filepath.Join(buidpackPath, "features", featureId, "bin", script)
 }
 
-func ContainerBuildContext() string {
+func GetContainerImageBuildContext() string {
 	context := os.Getenv("BP_CONTAINER_FEATURE_BUILD_CONTEXT")
 	if context == "" {
 		return "devcontainer"
@@ -155,20 +184,22 @@ func ContainerBuildContext() string {
 func GetOptionSelections(feature FeatureConfig, buildpackSettings BuildpackSettings, devContainerJson DevContainerJson) map[string]string {
 	optionSelections := make(map[string]string)
 
-	// Parse devcontainer.json features if file is found
-	fullFeatureId := GetFullFeatureId(feature, buildpackSettings)
-	for featureName, jsonOptionSelections := range devContainerJson.Features {
-		if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
-			if reflect.TypeOf(jsonOptionSelections).String() == "string" {
-				optionSelections["version"] = jsonOptionSelections.(string)
-			} else {
-				// Use reflection to convert the interface to a map[string]interface{} to a map[string]string
-				mapRange := reflect.ValueOf(jsonOptionSelections).MapRange()
-				for mapRange.Next() {
-					optionSelections[mapRange.Key().String()] = mapRange.Value().Elem().String()
+	// If in dev container mode, parse devcontainer.json features (if any)
+	if GetContainerImageBuildContext() == "devcontainer" {
+		fullFeatureId := GetFullFeatureId(feature, buildpackSettings)
+		for featureName, jsonOptionSelections := range devContainerJson.Features {
+			if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
+				if reflect.TypeOf(jsonOptionSelections).String() == "string" {
+					optionSelections["version"] = jsonOptionSelections.(string)
+				} else {
+					// Use reflection to convert the from a map[string]interface{} to a map[string]string
+					mapRange := reflect.ValueOf(jsonOptionSelections).MapRange()
+					for mapRange.Next() {
+						optionSelections[mapRange.Key().String()] = mapRange.Value().Elem().String()
+					}
 				}
+				break
 			}
-			break
 		}
 	}
 
@@ -190,7 +221,7 @@ func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]stri
 	optionEnvVarPrefix := "_BUILD_ARG_" + idSafe
 	env := append(os.Environ(),
 		optionEnvVarPrefix+"=true",
-		"_FEATURE_BUILD_CONTEXT="+ContainerBuildContext())
+		"_FEATURE_BUILD_CONTEXT="+GetContainerImageBuildContext())
 	if targetLayerPath != "" {
 		env = append(env, optionEnvVarPrefix+"_TARGET_PATH="+targetLayerPath)
 	}
@@ -205,4 +236,76 @@ func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]stri
 // e.g. chuxel/devcontainer/features/packcli
 func GetFullFeatureId(feature FeatureConfig, buildpackSettings BuildpackSettings) string {
 	return buildpackSettings.Publisher + "/" + buildpackSettings.FeatureSet + "/" + feature.Id
+}
+
+func CpR(sourcePath string, targetFolderPath string) {
+	sourceFileInfo, err := os.Stat(sourcePath)
+	if err != nil {
+		// Return if source path doesn't exist so we can use this with optional files
+		return
+	}
+	// Handle if source is file
+	if !sourceFileInfo.IsDir() {
+		Cp(sourcePath, targetFolderPath)
+		return
+	}
+
+	// Otherwise create the directory and scan contents
+	toFolderPath := filepath.Join(targetFolderPath, sourceFileInfo.Name())
+	os.MkdirAll(toFolderPath, sourceFileInfo.Mode())
+	fileInfos, err := ioutil.ReadDir(sourcePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, fileInfo := range fileInfos {
+		fromPath := filepath.Join(sourcePath, fileInfo.Name())
+		if fileInfo.IsDir() {
+			CpR(fromPath, toFolderPath)
+		} else {
+			Cp(fromPath, toFolderPath)
+		}
+	}
+}
+
+func Cp(sourceFilePath string, targetFolderPath string) {
+	sourceFileInfo, err := os.Stat(sourceFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Make target folder
+	targetFilePath := filepath.Join(targetFolderPath, sourceFileInfo.Name())
+	targetFile, err := os.Create(targetFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Sync source and target file mode and ownership
+	targetFile.Chmod(sourceFileInfo.Mode())
+	targetFile.Chown(int(sourceFileInfo.Sys().(*syscall.Stat_t).Uid), int(sourceFileInfo.Sys().(*syscall.Stat_t).Gid))
+
+	// Execute copy
+	sourceFile, err := os.Open(sourceFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = io.Copy(targetFile, sourceFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	targetFile.Close()
+	sourceFile.Close()
+}
+
+func WriteFile(filename string, fileBytes []byte) error {
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	if _, err = file.Write(fileBytes); err != nil {
+		return err
+	}
+	if err = file.Close(); err != nil {
+		return err
+	}
+	return nil
 }

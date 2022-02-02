@@ -23,7 +23,7 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 	var result libcnb.DetectResult
 
 	// Load features.json, buildpack settings
-	devContainerJson := LoadDevContainerJson(context.Application.Path)
+	devContainerJson, _ := LoadDevContainerJson(context.Application.Path)
 	buildpackSettings := LoadBuildpackSettings(context.Buildpack.Path)
 	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
 	log.Println("Number of features in Buildpack:", len(featuresJson.Features))
@@ -57,8 +57,6 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSett
 	fullFeatureId := buildpackSettings.Publisher + "/" + buildpackSettings.FeatureSet + "/" + feature.Id
 	provide := libcnb.BuildPlanProvide{Name: fullFeatureId}
 	require := libcnb.BuildPlanRequire{Name: fullFeatureId}
-
-	// TODO: Check devcontainer.json automatically in addition to firing detect if present
 
 	// Check environment to see if BP_CONTAINER_FEATURE_<feature.Id> is set
 	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")

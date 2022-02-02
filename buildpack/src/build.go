@@ -39,7 +39,7 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	var result libcnb.BuildResult
 
 	// Load devcontainer.json, features.json, buildpack settings
-	devContainerJson := LoadDevContainerJson(context.Application.Path)
+	devContainerJson, _ := LoadDevContainerJson(context.Application.Path)
 	buildpackSettings := LoadBuildpackSettings(context.Buildpack.Path)
 	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
 	log.Println("Number of features in Buildpack:", len(featuresJson.Features))
