@@ -47,8 +47,8 @@ func executeGenerateCommand() {
 
 func executeFinalizeCommand() {
 	// Define flags
-	var context string
-	flag.StringVar(&context, "context", GetContainerImageBuildContext(), "Container image build context: production | devcontainer")
+	var buildMode string
+	flag.StringVar(&buildMode, "mode", GetContainerImageBuildContext(), "Container image build mode: production | devcontainer")
 	flag.Parse()
 
 	applicationFolder := "."
@@ -59,5 +59,5 @@ func executeFinalizeCommand() {
 	if len(os.Args) > 3 {
 		applicationFolder = os.Args[3]
 	}
-	FinalizeImage(os.Args[2], applicationFolder, context)
+	FinalizeImage(os.Args[2], applicationFolder, buildMode)
 }

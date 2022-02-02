@@ -11,17 +11,17 @@ import (
 	"strings"
 )
 
-func FinalizeImage(imageToFinalize string, applicationFolder string, context string) {
+func FinalizeImage(imageToFinalize string, applicationFolder string, buildMode string) {
 	log.Println("Image to finalize:", imageToFinalize)
+	log.Println("Image build mode:", buildMode)
 	log.Println("Application folder:", applicationFolder)
-	log.Println("Container image build context:", context)
 
 	// Get devcontainer.json as a map so we don't change any fields unexpectedly
 	var devContainerJsonMap map[string]json.RawMessage
 	var devContainerJsonFeatureMap map[string]interface{}
 	var devContainerJsonPath string
 	// Only load the existing devcontainer.json file if we're in the devcontainer context
-	if context == "devcontainer" {
+	if buildMode == "devcontainer" {
 		log.Println("Loading devcontainer.json if present.")
 		devContainerJsonMap, devContainerJsonPath = LoadDevContainerJsonAsMap(applicationFolder)
 		// Unmarshall devcontainer.json features into a map
@@ -29,7 +29,7 @@ func FinalizeImage(imageToFinalize string, applicationFolder string, context str
 			log.Fatal(err)
 		}
 	} else {
-		log.Println("Context is", context, "- skipping devcontainer.json load.")
+		log.Println("Skipping devcontainer.json load since build mode is", buildMode)
 		devContainerJsonPath = FindDevContainerJson(applicationFolder)
 	}
 
