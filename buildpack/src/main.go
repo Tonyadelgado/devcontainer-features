@@ -48,7 +48,7 @@ func executeGenerateCommand() {
 func executeFinalizeCommand() {
 	// Define flags
 	var buildMode string
-	flag.StringVar(&buildMode, "mode", GetContainerImageBuildContext(), "Container image build mode: production | devcontainer")
+	flag.StringVar(&buildMode, "mode", GetContainerImageBuildMode(), "Container image build mode: production | devcontainer")
 	flag.Parse()
 
 	applicationFolder := "."

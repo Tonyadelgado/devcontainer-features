@@ -173,19 +173,19 @@ func GetFeatureScriptPath(buidpackPath string, featureId string, script string) 
 	return filepath.Join(buidpackPath, "features", featureId, "bin", script)
 }
 
-func GetContainerImageBuildContext() string {
-	context := os.Getenv("BP_CONTAINER_FEATURE_BUILD_CONTEXT")
-	if context == "" {
+func GetContainerImageBuildMode() string {
+	buildMode := os.Getenv("BP_CONTAINER_BUILD_MODE")
+	if buildMode == "" {
 		return "devcontainer"
 	}
-	return context
+	return buildMode
 }
 
 func GetOptionSelections(feature FeatureConfig, buildpackSettings BuildpackSettings, devContainerJson DevContainerJson) map[string]string {
 	optionSelections := make(map[string]string)
 
 	// If in dev container mode, parse devcontainer.json features (if any)
-	if GetContainerImageBuildContext() == "devcontainer" {
+	if GetContainerImageBuildMode() == "devcontainer" {
 		fullFeatureId := GetFullFeatureId(feature, buildpackSettings)
 		for featureName, jsonOptionSelections := range devContainerJson.Features {
 			if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
@@ -221,7 +221,7 @@ func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]stri
 	optionEnvVarPrefix := "_BUILD_ARG_" + idSafe
 	env := append(os.Environ(),
 		optionEnvVarPrefix+"=true",
-		"_FEATURE_BUILD_CONTEXT="+GetContainerImageBuildContext())
+		"_BUILD_MODE="+GetContainerImageBuildMode())
 	if targetLayerPath != "" {
 		env = append(env, optionEnvVarPrefix+"_TARGET_PATH="+targetLayerPath)
 	}
