@@ -186,14 +186,18 @@ func processEnvVar(name string, value string, envVars map[string]string) (string
 	after := ""
 	overwrite := ""
 
-	// Handle self-referencing
-	selfReplaceString := "${containerEnv:" + name + "}"
+	// Handle self-referencing - handle like ${PATH} or ${containerEnv:PATH}
+	selfReplaceString := "${" + name + "}"
 	selfRefIndex := strings.Index(value, selfReplaceString)
-	if selfRefIndex > -1 {
+	if selfRefIndex < 0 {
+		selfReplaceString = "${containerEnv:" + name + "}"
+		selfRefIndex = strings.Index(value, selfReplaceString)
+	}
+	if selfRefIndex < 0 {
+		overwrite = value
+	} else {
 		before = value[:selfRefIndex]
 		after = value[selfRefIndex+len(selfReplaceString):]
-	} else {
-		overwrite = value
 	}
 
 	// Replace other variables set
