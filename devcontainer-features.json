@@ -53,8 +53,8 @@
 			"name": "Test feature for buildpackify",
 			"containerEnv": {
 				"TEST": "true",
-				"PATH": "/i/am/before:${containerEnv:PATH}:/i/am/after",
-				"TEST2": "${containerEnv:TEST}"
+				"PATH": "/i/am/before:${PATH}:/i/am/after",
+				"TEST2": "${TEST}"
 			},
 			"options": {
 				"version": {
