@@ -118,7 +118,7 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 
 	// Add ID and option selections to layer metadata, add to LayerContributor
 	layer.Metadata = make(map[string]interface{})
-	layer.Metadata[FeatureLayerLabelId] = map[string]interface{}{
+	layer.Metadata[FeatureLayerMetadataId] = map[string]interface{}{
 		"id":         fc.FullFeatureId(),
 		"version":    fc.BuildpackSettings.Version,
 		"selections": fc.OptionSelections,

@@ -129,7 +129,7 @@ func convertLifecycleMetadataToFeatureOptionSelections(imageToFinalize string, d
 		// And each layer in each buildpack
 		for _, layerMetadata := range buildpackMetadata.Layers {
 			// See if there is any feature metadata
-			if layerFeatureMetadataRaw, hasKey := layerMetadata.Data[FeatureLayerLabelId]; hasKey {
+			if layerFeatureMetadataRaw, hasKey := layerMetadata.Data[FeatureLayerMetadataId]; hasKey {
 				// If so, load the json contents
 				var layerFeatureMetadata LayerFeatureMetadata
 				if err := json.Unmarshal(layerFeatureMetadataRaw, &layerFeatureMetadata); err != nil {
