@@ -118,23 +118,17 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 
 	// Add ID and option selections to layer metadata, add to LayerContributor
 	layer.Metadata = make(map[string]interface{})
-	layer.Metadata[FeatureLayerMetadataId] = map[string]interface{}{
-		"id":         fc.FullFeatureId(),
-		"version":    fc.BuildpackSettings.Version,
-		"selections": fc.OptionSelections,
+	layer.Metadata[FeatureLayerMetadataId] = LayerFeatureMetadata{
+		Id:               fc.FullFeatureId(),
+		Version:          fc.BuildpackSettings.Version,
+		OptionSelections: fc.OptionSelections,
 	}
 
-	//TODO: Handle containerEnv? This only works if the buildpack entrypoint is used - problem for SSH
+	// TODO: Process containerEnv? This only works if the buildpack entrypoint is used and the dev container CLI
+	// will add these as global env vars anyway. This model for environment variable management isn't that great
+	// since any docker exec process will not get them (as they're not children) of the entrypoint process.
 	if fc.Feature.ContainerEnv != nil && len(fc.Feature.ContainerEnv) > 0 {
-		for name, value := range fc.Feature.ContainerEnv {
-			before, after, overwrite := processEnvVar(name, value, fc.Feature.ContainerEnv)
-			if before != "" || after != "" {
-				layer.SharedEnvironment.Prepend(name, "", before)
-				layer.SharedEnvironment.Append(name, "", after)
-			} else {
-				layer.SharedEnvironment.Override(name, overwrite)
-			}
-		}
+		processContainerEnv(fc.Feature.ContainerEnv, layer)
 	}
 
 	// Finally, update layer types based on what was detected when created
@@ -173,6 +167,18 @@ func getLayerContributorForFeature(feature FeatureConfig, buildpackSettings Buil
 	}
 
 	return false, layerContributor
+}
+
+func processContainerEnv(containerEnv map[string]string, layer libcnb.Layer) {
+	for name, value := range containerEnv {
+		before, after, overwrite := processEnvVar(name, value, containerEnv)
+		if before != "" || after != "" {
+			layer.SharedEnvironment.Prepend(name, "", before)
+			layer.SharedEnvironment.Append(name, "", after)
+		} else {
+			layer.SharedEnvironment.Override(name, overwrite)
+		}
+	}
 }
 
 func processEnvVar(name string, value string, envVars map[string]string) (string, string, string) {

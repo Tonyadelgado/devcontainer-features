@@ -32,10 +32,28 @@
 		},
 		{
 			"id": "packcli",
-			"name": "Buildpacks pack CLI",
+			"name": "Buildpacks.io pack CLI",
+			"options": {
+				"version": {
+					"type": "string",
+					"proposals": ["latest"],
+					"default": "latest",
+					"description": "Pack CLI version"
+				},
+				"targetPath": {
+					"type": "string",
+					"proposals": ["/usr/local"],
+					"default": "/usr/local",
+					"description": "Target install path"
+				}
+			}
+		},
+		{
+			"id": "buildpack-test",
+			"name": "Test feature for buildpackify",
 			"containerEnv": {
 				"TEST": "true",
-				"PATH": "${containerEnv:PATH}:/yes/it/worked",
+				"PATH": "/i/am/before:${containerEnv:PATH}:/i/am/after",
 				"TEST2": "${containerEnv:TEST}"
 			},
 			"options": {
@@ -43,7 +61,13 @@
 					"type": "string",
 					"proposals": ["latest"],
 					"default": "latest",
-					"description": "Pack CLI version"
+					"description": "Version"
+				},
+				"foo": {
+					"type": "string",
+					"proposals": ["foo"],
+					"default": "foo",
+					"description": "Foo"
 				},
 				"targetPath": {
 					"type": "string",

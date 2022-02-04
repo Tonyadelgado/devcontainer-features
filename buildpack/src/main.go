@@ -40,10 +40,10 @@ func main() {
 func executeGenerateCommand(args []string) {
 	featuresPath := "."
 	outputPath := "out"
-	if len(args) > 1 {
+	if len(args) > 0 {
 		featuresPath = args[0]
 	}
-	if len(args) > 2 {
+	if len(args) > 1 {
 		outputPath = args[1]
 	}
 	Generate(featuresPath, outputPath)

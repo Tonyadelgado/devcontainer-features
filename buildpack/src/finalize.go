@@ -13,12 +13,6 @@ import (
 	"strings"
 )
 
-type LayerFeatureMetadata struct {
-	Id         string
-	Version    string
-	Selections map[string]string
-}
-
 type LabelBuldpack struct {
 	Layers map[string]LabelBuldpackLayer
 }
@@ -91,6 +85,7 @@ func FinalizeImage(imageToFinalize string, applicationFolder string, buildMode s
 	}
 
 	extractAndMakeEnvVarsGlobal(imageToFinalize)
+
 }
 
 func extractAndMakeEnvVarsGlobal(imageToFinalize string) {
@@ -143,7 +138,7 @@ func convertLifecycleMetadataToFeatureOptionSelections(imageToFinalize string, d
 					}
 				}
 				// And finally add the selections
-				devContainerJsonFeatureMap[layerFeatureMetadata.Id+"@"+layerFeatureMetadata.Version] = layerFeatureMetadata.Selections
+				devContainerJsonFeatureMap[layerFeatureMetadata.Id+"@"+layerFeatureMetadata.Version] = layerFeatureMetadata.OptionSelections
 			}
 		}
 	}

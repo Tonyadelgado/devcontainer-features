@@ -1,4 +1,11 @@
 [[entries]]
+  name = "chuxel/devcontainer-features/buildpack-test"
+  [entries.metadata]
+    build = true
+    cache = true
+    launch = true
+
+[[entries]]
   name = "chuxel/devcontainer-features/packcli"
   [entries.metadata]
     build = true

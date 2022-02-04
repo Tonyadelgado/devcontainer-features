@@ -20,8 +20,8 @@
 				"CNB_PLATFORM_API": "0.8",
 				"CNB_STACK_ID": "com.chuxel.stacks.test.bionic",
 				"CNB_BUILDPACK_DIR":"${workspaceFolder}/../test/out/buildpack",
-				"BP_CONTAINER_FEATURE_PACKCLI": "true",
-				"BP_CONTAINER_FEATURE_PACKCLI_VERSION": "0.23.0",
+				"BP_CONTAINER_FEATURE_BUILDPACK_TEST": "true",
+				"BP_CONTAINER_FEATURE_BUILDPACK_TEST_FOO": "bar-override",
 				"BP_CONTAINER_BUILD_MODE": "devcontainer"
 			},
 			"cwd": "${workspaceFolder}/../test/test-project",
@@ -42,7 +42,8 @@
 				"CNB_PLATFORM_API": "0.8",
 				"CNB_STACK_ID": "com.chuxel.stacks.test.bionic",
 				"CNB_BUILDPACK_DIR":"${workspaceFolder}/../test/out/buildpack",
-				"BP_CONTAINER_FEATURE_PACKCLI": "true",
+				"BP_CONTAINER_FEATURE_BUILDPACK_TEST": "true",
+				"BP_CONTAINER_FEATURE_BUILDPACK_TEST_FOO": "bar-override",
 				"BP_CONTAINER_BUILD_MODE": "devcontainer"
 			},
 			"cwd": "${workspaceFolder}/../test/test-project",

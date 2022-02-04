@@ -73,6 +73,12 @@ type DevContainerJson struct {
 	Features map[string]interface{}
 }
 
+type LayerFeatureMetadata struct {
+	Id               string
+	Version          string
+	OptionSelections map[string]string
+}
+
 func LoadFeaturesJson(featuresPath string) FeaturesJson {
 	// Load devcontainer-features.json or features.json
 	if featuresPath == "" {

@@ -46,6 +46,7 @@ conditional_install() {
     echo
 }
 
+conditional_install buildpack-test
 conditional_install vscode
 conditional_install googlechrome
 conditional_install packcli
