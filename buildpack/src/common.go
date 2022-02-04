@@ -15,7 +15,9 @@ import (
 
 const DefaultApiVersion = "0.7"
 const MetadataIdPrefix = "com.microsoft.devcontainer"
-const FeatureLayerLabelId = MetadataIdPrefix + ".feature"
+const FeaturesetMetadataId = MetadataIdPrefix + ".featureset"
+const FeaturesMetadataId = MetadataIdPrefix + ".features"
+const FeatureLayerMetadataId = MetadataIdPrefix + ".feature"
 
 type NonZeroExitError struct {
 	ExitCode int
