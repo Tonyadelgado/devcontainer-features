@@ -1,0 +1,10 @@
+{
+	"image": "test_image",
+	"features": {
+		"chuxel/devcontainer-features/packcli": "latest",
+		"chuxel/devcontainer-features/buildpack-test": {
+			"version": "from-devcontainer.json",
+			"foo": "bar"
+		}
+	}
+}

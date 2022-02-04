@@ -1,7 +1,7 @@
 {
 	"name": "Chuxel's dev container features",
 	"image": "mcr.microsoft.com/vscode/devcontainers/base:0-bullseye",
-	"settings": { },
+	"runArgs": ["--shm-size=1g"],
 	"extensions": [
 		"mads-hartmann.bash-ide-vscode",
 		"rogalmic.bash-debug",
@@ -19,6 +19,14 @@
 	"remoteUser": "vscode",
 	"features": {
 		"docker-in-docker": "latest",
-		"desktop-lite": "latest"
-	}
+		"desktop-lite": "latest",
+		"golang": "latest",
+		"node": "16",
+		"chuxel/devcontainer-features/packcli": "latest",
+		"chuxel/devcontainer-features/vscode": {
+			"edition": "both"
+		},
+		"chuxel/devcontainer-features/googlechrome": "latest"
+	},
+	"postCreateCommand": ". /usr/local/share/nvm/nvm.sh && npm install -g @vscode/dev-container-cli"
 }

@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+if [ "$(id -u)" -ne 0 ]; then
+    echo -e 'Script must be run as root.'
+    exit 1
+fi
+
+curl -sSL "https://dl.google.com/linux/direct/google-chrome-stable_current_$(dpkg --print-architecture).deb" -o /tmp/chrome.deb
+apt-get -y install /tmp/chrome.deb
+rm -f /tmp/chrome.deb
+
+echo "Done!"

@@ -1,0 +1,32 @@
+{
+	"folders": [
+		{ 
+			"name": "buildpackify (go module)",
+			"path": "buildpack/src"
+		},
+		{
+			"path": "buildpack"
+		},
+		{
+			"path": "builders"
+		},
+		{
+			"path": "features"
+		},
+		{
+			"path": "common"
+		},
+		{
+			"name": "repository root",
+			"path": "."
+		}
+	],
+	"settings": {
+		"cSpell.words": [
+			"buildpackify",
+			"buildpack",
+			"libbuildpackify",
+			"libcnb"
+		]
+	}
+}

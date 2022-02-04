@@ -1,1 +1,4 @@
-features.env
+/devcontainer-features.env
+/features.env
+out
+dist

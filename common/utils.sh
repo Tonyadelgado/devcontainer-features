@@ -1,9 +1,7 @@
-BASE_FEATURE_MARKER_PATH="/usr/local/etc/vscode-dev-containers/features"
-FEATURE_REPOSITORY="${FEATURE_REPOSITORY:-"misc"}"
-
 # Function to run apt-get if needed
 apt_get_update_if_needed()
 {
+    export DEBIAN_FRONTEND=noninteractive
     if [ ! -d "/var/lib/apt/lists" ] || [ "$(ls /var/lib/apt/lists/ | wc -l)" = "0" ]; then
         echo "Running apt-get update..."
         apt-get update
@@ -79,19 +77,60 @@ find_version_from_git_tags() {
     echo "${variable_name}=${!variable_name}"
 }
 
-# Exits the script if the script already been run once with the same arguments passed into this function.
-run_script() {
-    echo "(*) Running $1..."
-    local feature_marker="${BASE_FEATURE_MARKER_PATH}/${FEATURE_REPOSITORY}/${1}.marker";
-    mkdir -p "$(dirname "${feature_marker}")"
+# Checks if a marker file exists with the correct contents
+# check_marker <marker path> [argument to be validated]...
+check_marker() {
+    local marker_path="$1"
+    shift
     local verifier_string="$(echo "$@")"
-    if [ -e "${feature_marker}" ] && [ "${verifier_string}" = "$(cat ${feature_marker})" ]; then
-        echo "(*) Skipping. Script already run with same arguments."
-        return 0
+    if [ -e "${marker_path}" ] && [ "${verifier_string}" = "$(cat ${marker_path})" ]; then
+        return 1
     else 
-        bash "$@"
-        echo "${verifier_string}" > "${feature_marker}"
+        return 0
     fi
 }
 
+# Updates marker for future checking
+# update_marker <marker path> [argument to be validated]...
+update_marker() {
+    local marker_path="$1"
+    shift
+    mkdir -p "$(dirname "${marker_path}")"
+    echo "$(echo "$@")" > "${marker_path}"
+}
 
+# Checks if command exists, installs it if not
+# check_command <command> <package to install>...
+check_command() {
+    command_to_check=$1
+    shift
+    if type "${command_to_check}" > /dev/null 2>&1; then
+        return 0
+    fi
+    apt_get_update_if_needed
+    apt-get -y install --no-install-recommends "$@"
+}
+
+# Converts arguments into expected format for build args and updates a variable called "__retval" with the result
+get_buld_arg_env_var_name() {
+    local var_name="_BUILD_ARG"
+    while [ "$1" != "" ]; do
+        var_name="${var_name}_$(echo "$1" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
+        shift
+    done
+    __retval="${var_name}"
+}
+
+# set_var_to_option_value <feature id> <option name> <variable name> <default value>
+set_var_to_option_value() {
+    get_buld_arg_env_var_name "$1" "$2"
+    echo "$3=${!__retval:-"$4"}"
+    declare -g $3="${!__retval:-"$4"}"
+}
+
+# run_if_exists <command> <command arguments>...
+run_if_exists() {
+    if [ -e "$1" ]; then
+        "$@"
+    fi
+}

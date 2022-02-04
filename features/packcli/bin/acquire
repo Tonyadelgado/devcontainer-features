@@ -1,0 +1,40 @@
+#!/bin/bash
+set -e
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+FEATURE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FEATURE_ID="$(basename "${FEATURE_PATH}")"
+
+# Import common utils
+. "${FEATURE_PATH}/../../common/utils.sh"
+
+set_var_to_option_value "${FEATURE_ID}" target-path target_path "/usr/local"
+set_var_to_option_value "${FEATURE_ID}" version pack_cli_version "latest"
+find_version_from_git_tags pack_cli_version "https://github.com/buildpacks/pack"
+
+# Skip if already run with same args
+marker_path="${target_path}/etc/dev-container-features/github.com/chuxel/devcontainer-features/${FEATURE_ID}-${SCRIPT_NAME}.marker"
+if ! check_marker "${marker_path}" "${target_path}" "${pack_cli_version}"; then
+    echo "Pack CLI ${pack_cli_version} already installed. Skipping..."
+    exit 0
+fi
+
+echo "Downloading the Pack CLI..."
+repo_url="https://github.com/buildpacks/pack"
+find_version_from_git_tags pack_cli_version "${repo_url}"
+filename="pack-v${pack_cli_version}-linux.tgz"
+dl_url="${repo_url}/releases/download/v${pack_cli_version}/${filename}"
+
+mkdir -p /tmp/pack-cli "${target_path}/bin"
+curl -sSL "${dl_url}" > /tmp/pack-cli/${filename}
+curl -sSL "${dl_url}.sha256" > /tmp/pack-cli/${filename}.sha256
+cd /tmp/pack-cli
+
+sha256sum --ignore-missing -c "${filename}.sha256"
+tar -f "${filename}" -C "${target_path}/bin" --no-same-owner -xzv pack
+
+rm -rf /tmp/pack-cli
+
+# Mark as complete
+update_marker "${marker_path}" "${target_path}" "${pack_cli_version}"
+
+echo "Done!"
