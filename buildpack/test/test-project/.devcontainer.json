@@ -1,4 +1,5 @@
 {
+	"image": "test_image",
 	"features": {
 		"docker-in-docker": "latest",
 		"chuxel/devcontainer-features/packcli": {

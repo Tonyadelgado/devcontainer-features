@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"os"
 	"os/exec"
@@ -70,35 +69,18 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	log.Printf("Number of layer contributors: %d", len(result.Layers))
 	log.Printf("Unmet entries: %d", len(result.Unmet))
 
-	// Write label metadata (from layers) to indicate which features should be processed by devcontainer CLI
-	label := libcnb.Label{Key: AppliedFeaturesLabelId}
-	allFeatureOptionSelections := make(map[string]map[string]string)
-	for _, layer := range result.Layers {
-		contributor := layer.(FeatureLayerContributor)
-		idAndVersion := contributor.FullFeatureId() + "@" + buildpackSettings.Version
-		if contributor.OptionSelections != nil {
-			allFeatureOptionSelections[idAndVersion] = contributor.OptionSelections
-		} else {
-			allFeatureOptionSelections[idAndVersion] = make(map[string]string)
-		}
-	}
-	labelBytes, err := json.Marshal(allFeatureOptionSelections)
-	if err != nil {
-		return result, err
-	}
-	label.Value = string(labelBytes)
-	result.Labels = append(result.Labels, label)
 	return result, nil
 }
 
 func (fc FeatureLayerContributor) FullFeatureId() string {
+	// e.g. chuxel/devcontainer-features/packcli
 	return GetFullFeatureId(fc.Feature, fc.BuildpackSettings)
 }
 
 // Implementation of libcnb.LayerContributor.Name
 func (fc FeatureLayerContributor) Name() string {
-	// e.g. chuxel-devcontainer-features-packcli
-	return fc.BuildpackSettings.Publisher + "-" + fc.BuildpackSettings.FeatureSet + "-" + fc.Feature.Id
+	// e.g. packcli
+	return fc.Feature.Id
 }
 
 // Implementation of libcnb.LayerContributor.Contribute
@@ -113,7 +95,8 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	}
 
 	// Get build environment based on set options
-	env := GetBuildEnvironment(fc.Feature, fc.OptionSelections, layer.Path)
+	fc.OptionSelections["targetPath"] = layer.Path
+	env := GetBuildEnvironment(fc.Feature, fc.OptionSelections)
 
 	// Execute the script
 	log.Printf("- Executing %s\n", acquireScriptPath)
@@ -135,9 +118,10 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 
 	// Add ID and option selections to layer metadata, add to LayerContributor
 	layer.Metadata = make(map[string]interface{})
-	layer.Metadata["id"] = fc.FullFeatureId()
-	for name, value := range fc.OptionSelections {
-		layer.Metadata[name] = value
+	layer.Metadata[FeatureLayerLabelId] = map[string]interface{}{
+		"id":         fc.FullFeatureId(),
+		"version":    fc.BuildpackSettings.Version,
+		"selections": fc.OptionSelections,
 	}
 
 	//TODO: Handle containerEnv? This only works if the buildpack entrypoint is used - problem for SSH

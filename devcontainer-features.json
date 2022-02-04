@@ -44,6 +44,12 @@
 					"proposals": ["latest"],
 					"default": "latest",
 					"description": "Pack CLI version"
+				},
+				"targetPath": {
+					"type": "string",
+					"proposals": ["/usr/local"],
+					"default": "/usr/local",
+					"description": "Target install path"
 				}
 			}
 		}

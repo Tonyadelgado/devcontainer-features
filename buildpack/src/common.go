@@ -15,9 +15,7 @@ import (
 
 const DefaultApiVersion = "0.7"
 const MetadataIdPrefix = "com.microsoft.devcontainer"
-const FeaturesetMetadataId = "featureset"
-const FeaturesMetadataId = "features"
-const AppliedFeaturesLabelId = MetadataIdPrefix + ".features"
+const FeatureLayerLabelId = MetadataIdPrefix + ".feature"
 
 type NonZeroExitError struct {
 	ExitCode int
@@ -215,16 +213,13 @@ func GetOptionSelections(feature FeatureConfig, buildpackSettings BuildpackSetti
 	return optionSelections
 }
 
-func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]string, targetLayerPath string) []string {
+func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]string) []string {
 	// Create environment that includes feature build args
 	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
 	optionEnvVarPrefix := "_BUILD_ARG_" + idSafe
 	env := append(os.Environ(),
 		optionEnvVarPrefix+"=true",
 		"_BUILD_MODE="+GetContainerImageBuildMode())
-	if targetLayerPath != "" {
-		env = append(env, optionEnvVarPrefix+"_TARGET_PATH="+targetLayerPath)
-	}
 	for option, selection := range optionSelections {
 		if selection != "" {
 			env = append(env, optionEnvVarPrefix+"_"+strings.ToUpper(option)+"="+selection)
