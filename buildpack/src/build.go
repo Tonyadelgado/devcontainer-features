@@ -127,9 +127,14 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	// TODO: Process containerEnv? This only works if the buildpack entrypoint is used and the dev container CLI
 	// will add these as global env vars anyway. This model for environment variable management isn't that great
 	// since any docker exec process will not get them (as they're not children) of the entrypoint process.
-	if fc.Feature.ContainerEnv != nil && len(fc.Feature.ContainerEnv) > 0 {
-		processContainerEnv(fc.Feature.ContainerEnv, layer)
-	}
+	/*
+		if fc.Feature.ContainerEnv != nil && len(fc.Feature.ContainerEnv) > 0 {
+			processContainerEnv(fc.Feature.ContainerEnv, layer)
+		}
+	*/
+	layer.SharedEnvironment.Prepend("PATH", ":", "/buildpack/test/before")
+	layer.SharedEnvironment.Append("PATH", ":", "/buildpack/test/after")
+	layer.SharedEnvironment.Override("TEST3", "buildpack")
 
 	// Finally, update layer types based on what was detected when created
 	layer.LayerTypes = fc.LayerTypes
@@ -203,10 +208,11 @@ func processEnvVar(name string, value string, envVars map[string]string) (string
 	// Replace other variables set
 	for otherVarName, otherVarValue := range envVars {
 		if otherVarName != name {
-			replaceString := "${containerEnv:" + otherVarName + "}"
-			before = strings.ReplaceAll(before, replaceString, otherVarValue)
-			after = strings.ReplaceAll(after, replaceString, otherVarValue)
-			overwrite = strings.ReplaceAll(overwrite, replaceString, otherVarValue)
+			for _, replaceString := range []string{"${containerEnv:" + otherVarName + "}", "${" + otherVarName + "}"} {
+				before = strings.ReplaceAll(before, replaceString, otherVarValue)
+				after = strings.ReplaceAll(after, replaceString, otherVarValue)
+				overwrite = strings.ReplaceAll(overwrite, replaceString, otherVarValue)
+			}
 		}
 	}
 

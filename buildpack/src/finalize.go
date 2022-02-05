@@ -71,6 +71,11 @@ func FinalizeImage(imageToFinalize string, applicationFolder string, buildMode s
 		targetDevContainerJsonPath = filepath.Join(applicationFolder, ".devcontainer.json")
 		devContainerJsonMap["image"] = []byte(imageToFinalize)
 	}
+
+	// Always disable command override, force user env probe
+	devContainerJsonMap["overrideCommand"] = toJsonRawMessage(false)
+	devContainerJsonMap["userEnvProbe"] = toJsonRawMessage("loginInteractiveShell")
+
 	// Append ".buildpack" to avoid overwriting
 	targetDevContainerJsonPath += ".buildpack"
 
@@ -84,13 +89,49 @@ func FinalizeImage(imageToFinalize string, applicationFolder string, buildMode s
 		log.Fatal(err)
 	}
 
-	extractAndMakeEnvVarsGlobal(imageToFinalize)
+	//log.Println("Calling devcontainer CLI to add remaining container features to image.")
+	//devContainerImageBuild(imageToFinalize, targetDevContainerJsonPath, devContainerJsonPath)
 
+	log.Println("Extracting default launch env vars from", imageToFinalize, ", add to rc files.")
+	extractAndMakeEnvVarsGlobal(imageToFinalize)
+}
+
+func devContainerImageBuild(imageToFinalize string, tempDevContainerJsonPath string, originalDevContainerJsonPath string) {
+	workingDir := filepath.Dir(tempDevContainerJsonPath)
+
+	// Rename files so temp devcontainer.json is used
+	if err := os.Rename(originalDevContainerJsonPath, originalDevContainerJsonPath+".orig"); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.Rename(tempDevContainerJsonPath, originalDevContainerJsonPath); err != nil {
+		log.Fatal(err)
+	}
+
+	// Invoke dev container CLI
+	dockerCommand := exec.Command("devcontainer", "build", "--image-name", imageToFinalize)
+	dockerCommand.Env = os.Environ()
+	writer := log.Writer()
+	dockerCommand.Stdout = writer
+	dockerCommand.Stderr = writer
+	dockerCommand.Dir = workingDir
+	commandErr := dockerCommand.Run()
+
+	// Rename files back
+	if err := os.Rename(originalDevContainerJsonPath, tempDevContainerJsonPath); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.Rename(originalDevContainerJsonPath+".orig", originalDevContainerJsonPath); err != nil {
+		log.Fatal(err)
+	}
+
+	// Report command error if there was one
+	if commandErr != nil || dockerCommand.ProcessState.ExitCode() != 0 {
+		log.Fatal("Failed to build using devcontainer CLI. " + commandErr.Error())
+	}
 }
 
 func extractAndMakeEnvVarsGlobal(imageToFinalize string) {
 	var err error
-	log.Println("Extracting env vars from", imageToFinalize, "for default launch target.")
 	tempDir := filepath.Join(os.TempDir(), strconv.FormatInt(rand.Int63(), 36))
 	if err = os.MkdirAll(tempDir, 0777); err != nil {
 		log.Fatal(err)
@@ -164,7 +205,16 @@ func dockerCli(workingDir string, captureOutput bool, args ...string) []byte {
 	}
 	commandErr := dockerCommand.Run()
 	if commandErr != nil || dockerCommand.ProcessState.ExitCode() != 0 || errorOutput.Len() != 0 {
-		log.Fatal("Failed to extract env vars from Docker image. " + errorOutput.String() + commandErr.Error())
+		log.Fatal("Docker command failed. " + errorOutput.String() + commandErr.Error())
 	}
 	return outputBytes.Bytes()
+}
+
+func toJsonRawMessage(value interface{}) json.RawMessage {
+	var err error
+	var bytes json.RawMessage
+	if bytes, err = json.Marshal(value); err != nil {
+		log.Fatal(err)
+	}
+	return bytes
 }
