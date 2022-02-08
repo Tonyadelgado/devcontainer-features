@@ -54,7 +54,7 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 
 func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSettings, feature FeatureConfig, devContainerJson DevContainerJson) (bool, libcnb.BuildPlanProvide, libcnb.BuildPlanRequire, error) {
 	// e.g. chuxel/devcontainer/features/packcli
-	fullFeatureId := buildpackSettings.Publisher + "/" + buildpackSettings.FeatureSet + "/" + feature.Id
+	fullFeatureId := GetFullFeatureId(feature, buildpackSettings)
 	provide := libcnb.BuildPlanProvide{Name: fullFeatureId}
 	require := libcnb.BuildPlanRequire{Name: fullFeatureId}
 
@@ -64,7 +64,16 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSett
 		return true, provide, require, nil
 	}
 
-	// Check if acquire script for feature exists, skip otherwise
+	// If we're in devcontainer mode, and its referenced in devcontainer.json, return true
+	if GetContainerImageBuildMode() == "devcontainer" {
+		for featureName := range devContainerJson.Features {
+			if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
+				return true, provide, require, nil
+			}
+		}
+	}
+
+	// Otherwise, check if detect script for feature exists, return not detected otherwise
 	detectScriptPath := GetFeatureScriptPath(context.Buildpack.Path, feature.Id, "detect")
 	_, err := os.Stat(detectScriptPath)
 	if err != nil {

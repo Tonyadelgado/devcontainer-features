@@ -22,7 +22,7 @@
 				"CNB_BUILDPACK_DIR":"${workspaceFolder}/../test/out/buildpack",
 				"BP_CONTAINER_FEATURE_BUILDPACK_TEST": "true",
 				"BP_CONTAINER_FEATURE_BUILDPACK_TEST_FOO": "bar-override",
-				"BP_CONTAINER_BUILD_MODE": "devcontainer"
+				"BP_DCNB_BUILD_MODE": "devcontainer"
 			},
 			"cwd": "${workspaceFolder}/../test/test-project",
 			"preLaunchTask": "debug-prep"
@@ -44,7 +44,7 @@
 				"CNB_BUILDPACK_DIR":"${workspaceFolder}/../test/out/buildpack",
 				"BP_CONTAINER_FEATURE_BUILDPACK_TEST": "true",
 				"BP_CONTAINER_FEATURE_BUILDPACK_TEST_FOO": "bar-override",
-				"BP_CONTAINER_BUILD_MODE": "devcontainer"
+				"BP_DCNB_BUILD_MODE": "devcontainer"
 			},
 			"cwd": "${workspaceFolder}/../test/test-project",
 			"preLaunchTask": "debug-prep"
@@ -74,7 +74,7 @@
 				"${workspaceFolder}/../test/test-project"
 			],
 			"env": {
-				"BP_CONTAINER_BUILD_MODE": "devcontainer"
+				"BP_DCNB_BUILD_MODE": "devcontainer"
 			},
 			"cwd": "${workspaceFolder}/../test/test-project"
 		}

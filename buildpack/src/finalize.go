@@ -32,7 +32,8 @@ var envVarExtractionScript []byte
 //go:embed assets/env-restore.Dockerfile
 var envRestoreDockerfile []byte
 
-func FinalizeImage(imageToFinalize string, applicationFolder string, buildMode string) {
+func FinalizeImage(imageToFinalize string, applicationFolder string) {
+	buildMode := GetContainerImageBuildMode()
 	log.Println("Image to finalize:", imageToFinalize)
 	log.Println("Image build mode:", buildMode)
 	log.Println("Application folder:", applicationFolder)
