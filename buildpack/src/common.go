@@ -18,6 +18,7 @@ const MetadataIdPrefix = "com.microsoft.devcontainer"
 const FeaturesetMetadataId = MetadataIdPrefix + ".featureset"
 const FeaturesMetadataId = MetadataIdPrefix + ".features"
 const FeatureLayerMetadataId = MetadataIdPrefix + ".feature"
+const ContainerImageBuildModeEnvVarName = "BP_DCNB_BUILD_MODE"
 
 type NonZeroExitError struct {
 	ExitCode int
@@ -37,7 +38,7 @@ type FeatureOption struct {
 	Type        string
 	Enum        []string
 	Proposals   []string
-	Default     string
+	Default     interface{}
 	Description string
 }
 
@@ -180,7 +181,7 @@ func GetFeatureScriptPath(buidpackPath string, featureId string, script string) 
 }
 
 func GetContainerImageBuildMode() string {
-	buildMode := os.Getenv("BP_CONTAINER_BUILD_MODE")
+	buildMode := os.Getenv(ContainerImageBuildModeEnvVarName)
 	if buildMode == "" {
 		return "devcontainer"
 	}
@@ -189,7 +190,6 @@ func GetContainerImageBuildMode() string {
 
 func GetOptionSelections(feature FeatureConfig, buildpackSettings BuildpackSettings, devContainerJson DevContainerJson) map[string]string {
 	optionSelections := make(map[string]string)
-
 	// If in dev container mode, parse devcontainer.json features (if any)
 	if GetContainerImageBuildMode() == "devcontainer" {
 		fullFeatureId := GetFullFeatureId(feature, buildpackSettings)
@@ -227,7 +227,8 @@ func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]stri
 	optionEnvVarPrefix := "_BUILD_ARG_" + idSafe
 	env := append(os.Environ(),
 		optionEnvVarPrefix+"=true",
-		"_BUILD_MODE="+GetContainerImageBuildMode())
+		optionEnvVarPrefix+"_BUILD_MODE="+GetContainerImageBuildMode(),
+		optionEnvVarPrefix+"_PROFILE_D="+filepath.Join(optionSelections["targetPath"], "profile.d"))
 	for option, selection := range optionSelections {
 		if selection != "" {
 			env = append(env, optionEnvVarPrefix+"_"+strings.ToUpper(option)+"="+selection)

@@ -13,6 +13,13 @@ FEATURE_ID="$(basename "${FEATURE_PATH}")"
 . "${FEATURE_PATH}/../../common/utils.sh"
 
 check_command curl curl ca-certificates
+check_command gpg gnupg2
+check_command dirmngr dirmngr
 check_command tar tar
 check_command git git
-check_command sha256sum coreutils
+check_command make make
+check_command gcc gcc
+check_command xz xz-utils
+check_packages libssl-dev zlib1g-dev libncurses5-dev libbz2-dev \
+            libreadline-dev libxml2-dev libgdbm-dev tk-dev \
+            libxmlsec1-dev libsqlite3-dev libffi-dev liblzma-dev uuid-dev 

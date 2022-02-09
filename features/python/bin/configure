@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+if [ "$(id -u)" -ne 0 ]; then
+    echo -e 'Script must be run as root.'
+    exit 1
+fi
+
+feature_path="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+feature_id="$(basename "${FEATURE_PATH}")"
+target_path_var_name="_BUILD_ARG_${feature_id}_TARGETPATH"
+
+echo "${!target_path_var_name}" >> /etc/ld.so.conf.d/python.conf
+ldconfig

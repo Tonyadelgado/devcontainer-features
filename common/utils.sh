@@ -43,6 +43,58 @@ detect_user() {
     fi
 }
 
+# Get central common setting
+get_common_setting() {
+    if [ "${common_settings_file_loaded}" != "true" ]; then
+        curl -sfL "https://aka.ms/vscode-dev-containers/script-library/settings.env" 2>/dev/null -o /tmp/vsdc-settings.env || echo "Could not download settings file. Skipping."
+        common_settings_file_loaded=true
+    fi
+    if [ -f "/tmp/vsdc-settings.env" ]; then
+        local multi_line=""
+        if [ "$2" = "true" ]; then multi_line="-z"; fi
+        local result="$(grep ${multi_line} -oP "$1=\"?\K[^\"]+" /tmp/vsdc-settings.env | tr -d '\0')"
+        if [ ! -z "${result}" ]; then declare -g $1="${result}"; fi
+    fi
+    echo "$1=${!1}"
+}
+
+# Import the specified key in a variable name passed in as 
+receive_gpg_keys() {
+    get_common_setting $1
+    local keys=${!1}
+    get_common_setting GPG_KEY_SERVERS true
+    local keyring_args=""
+    if [ ! -z "$2" ]; then
+        mkdir -p "$(dirname \"$2\")"
+        keyring_args="--no-default-keyring --keyring $2"
+    fi
+
+    # Use a temporary locaiton for gpg keys to avoid polluting image
+    export GNUPGHOME="/tmp/tmp-gnupg"
+    mkdir -p ${GNUPGHOME}
+    chmod 700 ${GNUPGHOME}
+    echo -e "disable-ipv6\n${GPG_KEY_SERVERS}" > ${GNUPGHOME}/dirmngr.conf
+    # GPG key download sometimes fails for some reason and retrying fixes it.
+    local retry_count=0
+    local gpg_ok="false"
+    set +e
+    until [ "${gpg_ok}" = "true" ] || [ "${retry_count}" -eq "5" ]; 
+    do
+        echo "(*) Downloading GPG key..."
+        ( echo "${keys}" | xargs -n 1 gpg -q ${keyring_args} --recv-keys) 2>&1 && gpg_ok="true"
+        if [ "${gpg_ok}" != "true" ]; then
+            echo "(*) Failed getting key, retring in 10s..."
+            (( retry_count++ ))
+            sleep 10s
+        fi
+    done
+    set -e
+    if [ "${gpg_ok}" = "false" ]; then
+        echo "(!) Failed to get gpg key."
+        exit 1
+    fi
+}
+
 # Figure out correct version of a three part version number is not passed
 find_version_from_git_tags() {
     local variable_name=$1
@@ -51,7 +103,8 @@ find_version_from_git_tags() {
     local repository=$2
     local prefix=${3:-"tags/v"}
     local separator=${4:-"."}
-    local last_part_optional=${5:-"false"}    
+    local last_part_optional=${5:-"false"}
+    local suffix=$6
     if [ "$(echo "${requested_version}" | grep -o "." | wc -l)" != "2" ]; then
         local escaped_separator=${separator//./\\.}
         local last_part
@@ -60,7 +113,7 @@ find_version_from_git_tags() {
         else
             last_part="${escaped_separator}[0-9]+"
         fi
-        local regex="${prefix}\\K[0-9]+${escaped_separator}[0-9]+${last_part}$"
+        local regex="${prefix}\\K[0-9]+${escaped_separator}[0-9]+${last_part}${suffix}$"
         local version_list="$(git ls-remote --tags ${repository} | grep -oP "${regex}" | tr -d ' ' | tr "${separator}" "." | sort -rV)"
         if [ "${requested_version}" = "latest" ] || [ "${requested_version}" = "current" ] || [ "${requested_version}" = "lts" ]; then
             declare -g ${variable_name}="$(echo "${version_list}" | head -n 1)"
@@ -132,5 +185,12 @@ set_var_to_option_value() {
 run_if_exists() {
     if [ -e "$1" ]; then
         "$@"
+    fi
+}
+
+# symlink_if_ne <source> <target>
+symlink_if_ne() {
+    if [ ! -e "$2" ]; then
+        ln -s "$1" "$2"
     fi
 }

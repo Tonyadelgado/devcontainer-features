@@ -49,6 +49,24 @@
 			}
 		},
 		{
+			"id": "python",
+			"name": "Python",
+			"options": {
+				"version": {
+					"type": "string",
+					"proposals": ["latest"],
+					"default": "latest",
+					"description": "Python version"
+				},
+				"targetPath": {
+					"type": "string",
+					"proposals": ["/usr/local"],
+					"default": "/usr/local",
+					"description": "Target install path"
+				}
+			}
+		},
+		{
 			"id": "buildpack-test",
 			"name": "Test feature for buildpackify",
 			"containerEnv": {

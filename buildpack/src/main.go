@@ -58,5 +58,6 @@ func executeFinalizeCommand(args []string, buildMode string) {
 	if len(args) > 1 {
 		applicationFolder = args[1]
 	}
-	FinalizeImage(args[0], applicationFolder, buildMode)
+	os.Setenv(ContainerImageBuildModeEnvVarName, buildMode)
+	FinalizeImage(args[0], applicationFolder)
 }
