@@ -1,16 +1,16 @@
 #!/bin/bash
 set -e
+if [ "$(id -u)" -ne 0 ]; then
+    echo -e 'Script must be run as root.'
+    exit 1
+fi
+
 MICROSOFT_GPG_KEYS_URI="https://packages.microsoft.com/keys/microsoft.asc"
 FEATURE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FEATURE_ID="$(basename "${FEATURE_PATH}")"
 
 # Import common utils
 . "${FEATURE_PATH}/../../common/utils.sh"
-
-if [ "$(id -u)" -ne 0 ]; then
-    echo -e 'Script must be run as root.'
-    exit 1
-fi
 
 set_var_to_option_value "${FEATURE_ID}" edition vscode_edition "stable"
 set_var_to_option_value "${FEATURE_ID}" username username "automatic"
