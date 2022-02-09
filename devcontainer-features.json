@@ -64,7 +64,39 @@
 					"default": "/usr/local",
 					"description": "Target install path"
 				}
-			}
+			},
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance"
+			]
+		},
+		{
+			"id": "nodejs",
+			"name": "Node.js",
+			"options": {
+				"version": {
+					"type": "string",
+					"proposals": [ "lts", "latest", "16", "14", "12" ],
+					"default": "lts",
+					"description": "Select or enter a Node.js version to install"
+				},
+				"installYarn": {
+					"type": "boolean",
+					"default": true,
+					"description": "Install yarn"
+				},
+				"installNvm": {
+					"type": "boolean",
+					"default": true,
+					"description": "Install nvm"
+				},
+				"nodeGypDependencies": {
+					"type": "boolean",
+					"default": true,
+					"description": "Install dependencies to compile native node modules (node-gyp)?"
+				}
+			},
+			"extensions": ["dbaeumer.vscode-eslint"]
 		},
 		{
 			"id": "buildpack-test",

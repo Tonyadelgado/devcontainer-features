@@ -57,6 +57,20 @@ conditional_install() {
 # for scenarios where they are used in a feature that is not installed via the buildpack.
 # This makes it compatible with the buildpack spec's support for the same idea. We could
 # in concept just adopt this as the approach for dev container features in general as well.
+add_profile_d_to_file() {
+    local filename="$1"
+    local check_exists="${2:-$1}"
+    local snippet=". ${DEV_CONTAINER_CONFIG_DIR}/profile.d.sh"
+    if [ ! -e "${check_exists}" ]; then
+        echo "${check_exists} does not exist. Skipping."
+        return
+    fi
+    local existing_file="$(cat "${filename}")"
+    if [[ ${existing_file} != *"${snippet}"* ]]; then
+        echo "${snippet}" >> "${filename}"
+    fi
+}
+
 mkdir -p "${DEV_CONTAINER_PROFILE_D}"
 if [ ! -e "${DEV_CONTAINER_CONFIG_DIR}/profile.d.sh" ]; then
 cat << EOF > "${DEV_CONTAINER_CONFIG_DIR}/profile.d.sh"
@@ -72,13 +86,11 @@ fi
 EOF
 fi
 symlink_if_ne ${DEV_CONTAINER_CONFIG_DIR}/profile.d.sh /etc/profile.d/9999-vscdc-profile.sh
-snippet=". ${DEV_CONTAINER_CONFIG_DIR}/profile.d.sh"
-echo "${snippet}" >> /etc/bash.bashrc
-if [ -e "/etc/zsh" ]; then
-    echo "${snippet}" >> /etc/zsh/zshrc
-    echo "${snippet}" >> /etc/zsh/zprofile
-fi
+add_profile_d_to_file /etc/bash.bashrc
+add_profile_d_to_file /etc/zsh/zshrc /etc/zsh
+add_profile_d_to_file /etc/zsh/zprofile /etc/zsh
 
+# Execute actual feature installs
 conditional_install buildpack-test
 conditional_install python
 conditional_install nodejs

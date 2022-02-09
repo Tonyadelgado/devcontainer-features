@@ -10,6 +10,10 @@ FEATURE_ID="$(basename "${FEATURE_PATH}")"
 set_var_to_option_value "${FEATURE_ID}" targetpath target_path "/usr/local"
 set_var_to_option_value "${FEATURE_ID}" version pack_cli_version "latest"
 
+# Figure out the correct version to download
+repo_url="https://github.com/buildpacks/pack"
+find_version_from_git_tags pack_cli_version "${repo_url}"
+
 # Skip if already run with same args - handle caching
 marker_path="${target_path}/etc/dev-container-features/github.com/chuxel/devcontainer-features/${FEATURE_ID}-${SCRIPT_NAME}.marker"
 if ! check_marker "${marker_path}" "${target_path}" "${pack_cli_version}"; then
@@ -18,8 +22,6 @@ if ! check_marker "${marker_path}" "${target_path}" "${pack_cli_version}"; then
 fi
 
 echo "Downloading the Pack CLI..."
-repo_url="https://github.com/buildpacks/pack"
-find_version_from_git_tags pack_cli_version "${repo_url}"
 filename="pack-v${pack_cli_version}-linux.tgz"
 dl_url="${repo_url}/releases/download/v${pack_cli_version}/${filename}"
 
