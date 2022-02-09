@@ -25,11 +25,10 @@ type LifecycleLabelMetadata struct {
 	Buildpacks []LabelBuldpack
 }
 
-// docker inspect test_image -f '{{ index .Config.Labels "io.buildpacks.lifecycle.metadata" }}'
-//go:embed assets/extract-buildpack-env.sh
-var envVarExtractionScript []byte
+//go:embed assets/ensure-launcher-env.sh
+var ensureLauncherEnvScript []byte
 
-//go:embed assets/env-restore.Dockerfile
+//go:embed assets/ensure-launcher-env.Dockerfile
 var envRestoreDockerfile []byte
 
 func FinalizeImage(imageToFinalize string, applicationFolder string) {
@@ -90,11 +89,12 @@ func FinalizeImage(imageToFinalize string, applicationFolder string) {
 		log.Fatal(err)
 	}
 
+	log.Println("Ensuring /cnb/lifecycle/launch is fired as needed in bashrc/profile/zshenv.")
+	updateImageToEnsureLauncherEnv(imageToFinalize)
+
 	//log.Println("Calling devcontainer CLI to add remaining container features to image.")
 	//devContainerImageBuild(imageToFinalize, targetDevContainerJsonPath, devContainerJsonPath)
 
-	log.Println("Extracting default launch env vars from", imageToFinalize, ", add to rc files.")
-	extractAndMakeEnvVarsGlobal(imageToFinalize)
 }
 
 func devContainerImageBuild(imageToFinalize string, tempDevContainerJsonPath string, originalDevContainerJsonPath string) {
@@ -131,23 +131,24 @@ func devContainerImageBuild(imageToFinalize string, tempDevContainerJsonPath str
 	}
 }
 
-func extractAndMakeEnvVarsGlobal(imageToFinalize string) {
+func updateImageToEnsureLauncherEnv(imageToFinalize string) {
 	var err error
 	tempDir := filepath.Join(os.TempDir(), strconv.FormatInt(rand.Int63(), 36))
 	if err = os.MkdirAll(tempDir, 0777); err != nil {
 		log.Fatal(err)
 	}
-	envDockerfileSnippetBytes := dockerCli(tempDir, true, "run", "--rm", imageToFinalize, string(envVarExtractionScript))
-	envFilePath := filepath.Join(tempDir, "buildpack.env")
-	if err = WriteFile(envFilePath, envDockerfileSnippetBytes); err != nil {
-		log.Fatal(err)
-	}
-
 	dockerFilePath := filepath.Join(tempDir, "Dockerfile")
 	if err = WriteFile(dockerFilePath, envRestoreDockerfile); err != nil {
 		log.Fatal(err)
 	}
+	ensureLauncherEnvScriptPath := filepath.Join(tempDir, "ensure-launcher-env.sh")
+	if err = WriteFile(ensureLauncherEnvScriptPath, ensureLauncherEnvScript); err != nil {
+		log.Fatal(err)
+	}
 	dockerCli(tempDir, false, "build", "--build-arg", "IMAGE_NAME="+imageToFinalize, "-t", imageToFinalize, "-f", dockerFilePath, ".")
+	if err = os.RemoveAll(tempDir); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func convertLifecycleMetadataToFeatureOptionSelections(imageToFinalize string, devContainerJsonFeatureMap map[string]interface{}) map[string]interface{} {
