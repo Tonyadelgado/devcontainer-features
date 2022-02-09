@@ -16,6 +16,7 @@ check_command curl curl ca-certificates
 check_command gpg gnupg2
 check_command dirmngr dirmngr
 check_command tar tar
+check_command git git
 check_command make make
 check_command gcc gcc
 check_command xz xz-utils

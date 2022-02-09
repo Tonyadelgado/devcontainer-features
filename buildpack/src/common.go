@@ -227,7 +227,8 @@ func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]stri
 	optionEnvVarPrefix := "_BUILD_ARG_" + idSafe
 	env := append(os.Environ(),
 		optionEnvVarPrefix+"=true",
-		"_BUILD_MODE="+GetContainerImageBuildMode())
+		optionEnvVarPrefix+"_BUILD_MODE="+GetContainerImageBuildMode(),
+		optionEnvVarPrefix+"_PROFILE_D="+filepath.Join(optionSelections["targetPath"], "profile.d"))
 	for option, selection := range optionSelections {
 		if selection != "" {
 			env = append(env, optionEnvVarPrefix+"_"+strings.ToUpper(option)+"="+selection)

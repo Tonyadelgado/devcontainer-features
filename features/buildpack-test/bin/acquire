@@ -7,27 +7,36 @@ FEATURE_ID="$(basename "${FEATURE_PATH}")"
 # Import common utils
 . "${FEATURE_PATH}/../../common/utils.sh"
 
+set_var_to_option_value "${FEATURE_ID}" build_mode build_mode "devcontainer"
+set_var_to_option_value "${FEATURE_ID}" profile_d profile_d "/usr/local/etc/vscode-dev-containers/profile.d"
 set_var_to_option_value "${FEATURE_ID}" targetpath target_path "/usr/local"
 set_var_to_option_value "${FEATURE_ID}" version version "latest"
 set_var_to_option_value "${FEATURE_ID}" foo foo "latest"
 
 # Skip if already run with same args
 marker_path="${target_path}/etc/dev-container-features/github.com/chuxel/devcontainer-features/${FEATURE_ID}-${SCRIPT_NAME}.marker"
-if ! check_marker "${marker_path}" "${target_path}" "${version}" "${foo}"; then
+if ! check_marker "${marker_path}" "${target_path}" "${version}" "${foo}" "${build_mode}"; then
     echo "Foo ${version} already installed. Skipping..."
     exit 0
 fi
+
+# Test out the profile.d interface
+mkdir -p "${profile_d}"
+echo "export BUILDPACK_TEST_PROFILE_D_WORKED=true" > "${profile_d}/buildpack-test.sh"
+chmod +x "${profile_d}/buildpack-test.sh"
 
 mkdir -p "${target_path}"/bin
 cat << EOF >> "${target_path}"/bin/foo
 #!/bin/sh
 echo "Foo!! Foo is ${foo}"
+echo "Marker: \$(cat ${marker_path})"
+echo "BUILDPACK_TEST_PROFILE_D_WORKED=\${BUILDPACK_TEST_PROFILE_D_WORKED}"
 echo "TEST=\${TEST}"
-echo "TEST2=\${TEST}"
+echo "TEST2=\${TEST2}"
 EOF
 chmod +x "${target_path}"/bin/foo
 
 # Mark as complete
-update_marker "${marker_path}" "${target_path}" "${version}" "${foo}"
+update_marker "${marker_path}" "${target_path}" "${version}" "${foo}" "${build_mode}"
 
 echo "Done!"

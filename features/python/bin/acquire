@@ -14,12 +14,6 @@ keyserver hkp://keyserver.pgp.com"
 # Import common utils
 . "${FEATURE_PATH}/../../common/utils.sh"
 
-symlink_if_ne() {
-    if [ ! -e "$2" ]; then
-        ln -s "$1" "$2"
-    fi
-}
-
 download_from_actions() {
     echo "Downloading pre-built Python ${python_version}..."
     local filename="python-${python_version%-*}-linux-${VERSION_ID}-x64.tar.gz"
@@ -104,6 +98,8 @@ install_tools() {
 
 # Get _BUILD_ARG_... variables
 detect_user username
+set_var_to_option_value "${FEATURE_ID}" build_mode build_mode "devcontainer"
+set_var_to_option_value "${FEATURE_ID}" profile_d profile_d "/usr/local/etc/vscode-dev-containers/profile.d"
 set_var_to_option_value "${FEATURE_ID}" targetpath target_path "/usr/local"
 set_var_to_option_value "${FEATURE_ID}" version python_version "latest"
 set_var_to_option_value "${FEATURE_ID}" optimize optimize "true"
@@ -125,7 +121,7 @@ fi
 
 # Skip if already run with same args - handle caching
 marker_path="${target_path}/etc/dev-container-features/github.com/chuxel/devcontainer-features/${FEATURE_ID}-${SCRIPT_NAME}.marker"
-if ! check_marker "${marker_path}" "${target_path}" "${python_version}" "${optimize}" "${install_tools}" "${BP_CONTAINER_BUILD_MODE}"; then
+if ! check_marker "${marker_path}" "${target_path}" "${python_version}" "${optimize}" "${install_tools}" "${build_mode}"; then
     echo "Python ${python_version} already installed. Skipping..."
     exit 0
 fi
@@ -142,10 +138,10 @@ symlink_if_ne ${target_path}/bin/idle3 ${target_path}/bin/idle
 symlink_if_ne ${target_path}/bin/pydoc3 ${target_path}/bin/pydoc
 symlink_if_ne ${target_path}/bin/python3-config ${target_path}/bin/python-config
 
-if [ "${BP_CONTAINER_BUILD_MODE}" = "devcontainer" ] &&  [ "${install_tools}" = "true" ]; then
+if [ "${build_mode}" = "devcontainer" ] && [ "${install_tools}" = "true" ]; then
     install_tools
 fi
 
-rm -rf /tmp/python-src /tmp/vscdc-settings.env
+rm -f /tmp/vscdc-settings.env
 
-update_marker "${marker_path}" "${target_path}" "${python_version}" "${python_binary_source}" "${optimize}" "${install_tools}" "${BP_CONTAINER_BUILD_MODE}"
+update_marker "${marker_path}" "${target_path}" "${python_version}" "${python_binary_source}" "${optimize}" "${install_tools}" "${build_mode}"

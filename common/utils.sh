@@ -187,3 +187,10 @@ run_if_exists() {
         "$@"
     fi
 }
+
+# symlink_if_ne <source> <target>
+symlink_if_ne() {
+    if [ ! -e "$2" ]; then
+        ln -s "$1" "$2"
+    fi
+}

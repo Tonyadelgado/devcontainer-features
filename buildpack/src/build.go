@@ -132,6 +132,8 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 			processContainerEnv(fc.Feature.ContainerEnv, layer)
 		}
 	*/
+
+	//TODO: Remove these test lines
 	layer.SharedEnvironment.Prepend("PATH", ":", "/buildpack/test/before")
 	layer.SharedEnvironment.Append("PATH", ":", "/buildpack/test/after")
 	layer.SharedEnvironment.Override("TEST3", "buildpack")

@@ -3,4 +3,5 @@ FROM ${IMAGE_NAME}
 
 USER root
 RUN --mount=type=bind,source=.,target=/host bash /host/ensure-launcher-env.sh
+CMD [ "sleep", "infinity" ]
 USER cnb

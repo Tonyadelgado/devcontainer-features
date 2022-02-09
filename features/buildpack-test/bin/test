@@ -1,4 +1,13 @@
 #!/bin/bash
 # Script to smoke test that the featue is installed correctly
 set -e
-foo
+sh -l -c foo
+# Verify profile script worked
+if [ "$(sh -l -c 'echo ${BUILDPACK_TEST_PROFILE_D_WORKED}')" != "true" ]; then
+    echo "Profile script was not sourced as a login shell!"
+    exit 1
+fi
+if [ "$(bash -i -c 'echo ${BUILDPACK_TEST_PROFILE_D_WORKED}')" != "true" ]; then
+    echo "Profile script was not sourced in an interactive shell!"
+    exit 1
+fi
