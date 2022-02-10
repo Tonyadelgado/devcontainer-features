@@ -19,5 +19,7 @@ docker build -t "${uri_prefix}/stack-devcontainer-run-image" --cache-from "${uri
 if [ "${publish}" = "true" ]; then
     echo "(*) Publishing..."
     docker push "${uri_prefix}/stack-build-image"
-    docker push "${uri_prefix}/builder-prod"
+    docker push "${uri_prefix}/stack-run-image"
+    docker push "${uri_prefix}/stack-devcontainer-build-image"
+    docker push "${uri_prefix}/stack-devcontainer-run-image"
 fi
