@@ -2,8 +2,9 @@
 set -e
 # The install.sh script is the installation entrypoint for any features in this repository. 
 DEV_CONTAINER_FEATURE_SMOKE_TEST="${1:-"${DEV_CONTAINER_FEATURE_SMOKE_TEST-false}"}"
-DEV_CONTAINER_CONFIG_DIR="/usr/local/etc/vscode-dev-containers"
+DEV_CONTAINER_CONFIG_DIR="/usr/local/etc/dev-container-features"
 DEV_CONTAINER_PROFILE_D="${DEV_CONTAINER_CONFIG_DIR}/profile.d"
+DEV_CONTAINER_MARKERS="${DEV_CONTAINER_CONFIG_DIR}/markers"
 
 if [ "$(id -u)" -ne 0 ]; then
     echo -e 'Script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.'
@@ -23,6 +24,11 @@ set -a
 . ./devcontainer-features.env
 set +a
 
+# Detect username for acquire script
+username="automatic"
+detect_user username
+echo "(*) User for acquire script: ${username:-root}"
+
 # Syntax: conditional_install <feature_id>
 # Executes feature's scripts if _BUILD_ARG_<FEATURE_ID> is set. It will
 # automatically change the feature_id to upper case and swap out - for _. It
@@ -40,6 +46,14 @@ conditional_install() {
     profile_d_build_arg_name="_BUILD_ARG_${feature_id_safe}_PROFILE_D"
     declare -x ${profile_d_build_arg_name}="${DEV_CONTAINER_PROFILE_D}"
 
+    # Always set build mode to devcontainer - buildpacks will also set this to an appropriate value
+    build_mode_build_arg_name="_BUILD_ARG_${feature_id_safe}_BUILD_MODE"
+    declare -x ${build_mode_build_arg_name}="devcontainer"
+
+    # Run the three stages in sequence (assuming each exists). These are:
+    # 1. validate-prereqs - Can be expected to run as root and should only include things needed to do acquisition
+    # 2. acquire - Core install stage. However, this stage cannot be assumed to be running as root.
+    # 3. configure - Runs post-acquisition steps that require root. It's entirely optional.
     echo "(*) Enabling feature \"$1\"..."
     chmod +x "${feature_bin_dir}"/*
     run_if_exists "${feature_bin_dir}/validate-prereqs"
@@ -71,7 +85,8 @@ add_profile_d_to_file() {
     fi
 }
 
-mkdir -p "${DEV_CONTAINER_PROFILE_D}"
+mkdir -p "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_MARKERS}"
+chown "${username}" "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_MARKERS}"
 if [ ! -e "${DEV_CONTAINER_CONFIG_DIR}/profile.d.sh" ]; then
 cat << EOF > "${DEV_CONTAINER_CONFIG_DIR}/profile.d.sh"
 if [ -d "${DEV_CONTAINER_PROFILE_D}" ] && [ -z "\${DEV_CONTAINER_PROFILE_D_DONE}" ]; then

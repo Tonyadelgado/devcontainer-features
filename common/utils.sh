@@ -188,6 +188,16 @@ run_if_exists() {
     fi
 }
 
+# run_as_user_if_exists <username> <command> <command arguments>...
+run_as_user_if_exists() {
+    local username=$1
+    shift
+    if [ -e "$1" ]; then
+        local command_string="$@"
+        su "${username}" -c "${command_string//"/\\"}"
+    fi
+}
+
 # symlink_if_ne <source> <target>
 symlink_if_ne() {
     if [ ! -e "$2" ]; then

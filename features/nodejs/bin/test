@@ -2,7 +2,7 @@
 # Script to smoke test that the featue is installed correctly
 set -e
 node --version
-sh -l -c 'nvm --version'
+bash -ic 'nvm --version'
 yarn --version
 make --version
 gcc --version

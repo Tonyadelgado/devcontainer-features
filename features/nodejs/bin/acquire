@@ -110,19 +110,20 @@ install_nvm() {
         -c advice.detachedHead=false \
         -b "${NVM_VERSION}" \
         "https://github.com/nvm-sh/nvm" "${nvm_dir}" 2>&1
-    mkdir -p "${profile_d}"
-    # Add a profile script that ensures the needed snippet is in
-    # the user's bashrc if it's not alreay present elsewhere.
-    local snippet="$(cat "${FEATURE_PATH}/scripts/ensure-nvm.sh")"
-    echo "${snippet/REPLACE-ME/${nvm_dir}}" > "${profile_d}/ensure-nvm.sh"
     . "${nvm_dir}"/nvm.sh
     nvm clear-cache
+
+    # NOTE: Since adding something to profile.d or exec.d only results
+    # in environment variables being set for a process, it won't work
+    # for nvm (we have to actually source it for it to work). In additon
+    # you can't just add to the user or OS's rc/profile files from this
+    # stage. So we'll add this particular bit in the "configure" script.
 }
 
 # Get _BUILD_ARG_... variables
 detect_user username
 set_var_to_option_value "${FEATURE_ID}" build_mode build_mode "devcontainer"
-set_var_to_option_value "${FEATURE_ID}" profile_d profile_d "/usr/local/etc/vscode-dev-containers/profile.d"
+set_var_to_option_value "${FEATURE_ID}" profile_d profile_d "/usr/local/etc/dev-container-features/profile.d"
 set_var_to_option_value "${FEATURE_ID}" targetpath target_path "/usr/local"
 set_var_to_option_value "${FEATURE_ID}" version node_version "latest"
 set_var_to_option_value "${FEATURE_ID}" installtools install_tools "true"
@@ -141,7 +142,7 @@ else
 fi
 
 # Skip if already run with same args - handle caching
-marker_path="${target_path}/etc/dev-container-features/github.com/chuxel/devcontainer-features/${FEATURE_ID}-${SCRIPT_NAME}.marker"
+marker_path="${target_path}/etc/dev-container-features/markers/github.com/chuxel/devcontainer-features/${FEATURE_ID}-${SCRIPT_NAME}.marker"
 if ! check_marker "${marker_path}" "${target_path}" "${node_version}" "${install_tools}" "${build_mode}"; then
     echo "Node ${node_version} already installed. Skipping..."
     exit 0

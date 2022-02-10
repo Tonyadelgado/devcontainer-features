@@ -3,7 +3,6 @@ set -e
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 FEATURE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FEATURE_ID="$(basename "${FEATURE_PATH}")"
-BP_CONTAINER_BUILD_MODE="${BP_CONTAINER_BUILD_MODE:-devcontainer}"
 
 DEFAULT_UTILS=("pylint" "flake8" "autopep8" "black" "yapf" "mypy" "pydocstyle" "pycodestyle" "bandit" "pipenv" "virtualenv")
 PYTHON_SOURCE_GPG_KEYS="64E628F8D684696D B26995E310250568 2D347EA6AA65421D FB9921286F5E1540 3A5CA953F73C700D 04C367C218ADD4FF 0EDDC5F26A45C816 6AF053F07D9DC8D2 C9BE28DEE6DF025C 126EB563A74B06BF D9866941EA5BBD71 ED9D77D5"
@@ -99,7 +98,7 @@ install_tools() {
 # Get _BUILD_ARG_... variables
 detect_user username
 set_var_to_option_value "${FEATURE_ID}" build_mode build_mode "devcontainer"
-set_var_to_option_value "${FEATURE_ID}" profile_d profile_d "/usr/local/etc/vscode-dev-containers/profile.d"
+set_var_to_option_value "${FEATURE_ID}" profile_d profile_d "/usr/local/etc/dev-container-features/profile.d"
 set_var_to_option_value "${FEATURE_ID}" targetpath target_path "/usr/local"
 set_var_to_option_value "${FEATURE_ID}" version python_version "latest"
 set_var_to_option_value "${FEATURE_ID}" optimize optimize "true"
@@ -120,7 +119,7 @@ else
 fi
 
 # Skip if already run with same args - handle caching
-marker_path="${target_path}/etc/dev-container-features/github.com/chuxel/devcontainer-features/${FEATURE_ID}-${SCRIPT_NAME}.marker"
+marker_path="${target_path}/etc/dev-container-features/marker/github.com/chuxel/devcontainer-features/${FEATURE_ID}-${SCRIPT_NAME}.marker"
 if ! check_marker "${marker_path}" "${target_path}" "${python_version}" "${optimize}" "${install_tools}" "${build_mode}"; then
     echo "Python ${python_version} already installed. Skipping..."
     exit 0
