@@ -5,7 +5,7 @@ on:
     tags:
     - 'v*'
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -52,6 +52,6 @@ jobs:
 
       - name: Build and publish devpacks
         id: publish_devpacks
-        run: bash scripts/build-and-publish-all.sh
+        run: bash scripts/build-and-publish-all.sh GITHUB_TOKEN "${{ github.actor }}"
 
 
