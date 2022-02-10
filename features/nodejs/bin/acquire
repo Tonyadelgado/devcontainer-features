@@ -111,7 +111,10 @@ install_nvm() {
         -b "${NVM_VERSION}" \
         "https://github.com/nvm-sh/nvm" "${nvm_dir}" 2>&1
     mkdir -p "${profile_d}"
-    echo -e "export NVM_DIR=\"${nvm_dir}\"\n[ -s \"\$NVM_DIR/nvm.sh\" ] && \\. \"\$NVM_DIR/nvm.sh\"\n[ -s \"\$NVM_DIR/bash_completion\" ] && \\. \"\$NVM_DIR/bash_completion\"" > "${profile_d}/nvm.sh"
+    # Add a profile script that ensures the needed snippet is in
+    # the user's bashrc if it's not alreay present elsewhere.
+    local snippet="$(cat "${FEATURE_PATH}/scripts/ensure-nvm.sh")"
+    echo "${snippet/REPLACE-ME/${nvm_dir}}" > "${profile_d}/ensure-nvm.sh"
     . "${nvm_dir}"/nvm.sh
     nvm clear-cache
 }
