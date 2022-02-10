@@ -4,9 +4,12 @@ on:
   push:
     tags:
     - 'v*'
+  permissions:
+    contents: read
+    packages: write
 
 jobs:
-  deploy:
+  release-features:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -40,5 +43,15 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./devcontainer-features.tgz
           asset_name: devcontainer-features.tgz
-          asset_content_type: application/gzip 
+          asset_content_type: application/gzip
+
+  release-devpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build and publish devpacks
+        id: publish_devpacks
+        run: bash scripts/build-and-publish-all.sh
+
 

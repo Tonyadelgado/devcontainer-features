@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 cd "$(dirname "${BASH_SOURCE[0]}")"/..
+publish="${1:-false}"
 
-./scripts/package-buildpack.sh
-./builders/build-stack-images.sh
-./builders/create-builders.sh full
+./scripts/package-buildpack.sh "${publish}"
+./builders/build-stack-images.sh "${publish}"
+./builders/create-builders.sh full "${publish}"

@@ -1,8 +1,21 @@
 #!/bin/bash
 set -e
-builder_type="${1:-"empty"}"
-
 cd "$(dirname "${BASH_SOURCE[0]}")"
+export DOCKER_BUILDKIT=1
+builder_type="${1:-"empty"}"
+publish="${2:-false}"
 
-pack builder create ghcr.io/chuxel/devcontainer-features/builder-devcontainer --pull-policy if-not-present -c ${builder_type}/builder-devcontainer.toml
-pack builder create ghcr.io/chuxel/devcontainer-features/builder-prod --pull-policy if-not-present -c ${builder_type}/builder-prod.toml
+publisher="$(jq -r '.publisher' ../buildpack-settings.json)"
+featureset_name="$(jq -r '.featureSet' ../buildpack-settings.json)"
+version="$(jq -r '.version' ../buildpack-settings.json)"
+uri_prefix="ghcr.io/${publisher}/${featureset_name}"
+
+echo "(*) Creating ${builder_type} Builder.."
+pack builder create "${uri_prefix}/builder-devcontainer" --pull-policy if-not-present -c ${builder_type}/builder-devcontainer.toml
+pack builder create "${uri_prefix}/builder-prod" --pull-policy if-not-present -c ${builder_type}/builder-prod.toml
+
+if [ "${publish}" = "true" ]; then
+    echo "(*) Publishing..."
+    docker push "${uri_prefix}/builder-devcontainer"
+    docker push "${uri_prefix}/builder-prod"
+fi
