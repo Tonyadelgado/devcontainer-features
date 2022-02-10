@@ -52,6 +52,8 @@ jobs:
 
       - name: Build and publish devpacks
         id: publish_devpacks
-        run: bash scripts/build-and-publish-all.sh GITHUB_TOKEN "${{ github.actor }}"
+        run: |
+          export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          bash scripts/build-and-publish-all.sh GHCR_TOKEN "${{ github.actor }}"
 
 
