@@ -21,6 +21,7 @@ RUN apt-get update \
         gnupg2 \
         dirmngr \
         procps \
+    && ldconfig \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 #  ******* Build image  *******

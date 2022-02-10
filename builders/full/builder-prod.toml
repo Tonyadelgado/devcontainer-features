@@ -1,0 +1,15 @@
+# https://buildpacks.io/docs/reference/config/builder-config/
+[[buildpacks]]
+id = "chuxel/devcontainer-features"
+uri = "docker://ghcr.io/chuxel/devcontainer-features/buildpack:v0.0.11"
+
+[[order]]
+
+    [[order.group]]
+    id = "chuxel/devcontainer-features"
+    optional = true
+
+[stack]
+id = "com.chuxel.stacks.test.bionic"
+run-image = "ghcr.io/chuxel/devcontainer-features/stack-run-image"
+build-image = "ghcr.io/chuxel/devcontainer-features/stack-build-image"
