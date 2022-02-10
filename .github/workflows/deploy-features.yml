@@ -4,9 +4,9 @@ on:
   push:
     tags:
     - 'v*'
-  permissions:
-    contents: read
-    packages: write
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   release-features:
