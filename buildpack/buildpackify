@@ -1,5 +1,18 @@
 #!/bin/bash
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+osname="$(uname)"
+case $osname in
+    Darwin | darwin)
+        osname=darwin
+        ;;
+    Linux | linux | GNU/Linux)
+        osname=linux
+        ;;
+    *)
+        echo "Unsupported OS: $osname"
+        exit 1
+        ;;
+esac
 arch="$(uname -m)"
 case $arch in
     x86_64)
@@ -14,14 +27,16 @@ case $arch in
         ;;
 esac
 
-if [ -e "${script_dir}/buildpackify-${arch}" ]; then
-    "${script_dir}/buildpackify-${arch}" generate "$@"
+binary_name="buildpackify-${osname}-${arch}"
+
+if [ -e "${script_dir}/${binary_name}" ]; then
+    "${script_dir}/${binary_name}" generate "$@"
     exit $?
 fi
 
-if [ -e "${script_dir}/dist/buildpackify-${arch}" ]; then
-    "${script_dir}/dist/buildpackify-${arch}" generate "$@"
+if [ -e "${script_dir}/dist/${binary_name}" ]; then
+    "${script_dir}/dist/${binary_name}" generate "$@"
     exit $?
 fi
 
-echo "Unable to find buildpackify binary for ${arch}!"
+echo "Unable to find buildpackify binary for ${osname} ${arch}!"

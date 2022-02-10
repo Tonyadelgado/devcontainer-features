@@ -40,21 +40,21 @@ func Generate(featuresPath string, outputPath string) {
 
 	// Copy all architecture versions of current executable, unless in debug mode where we should just copy this binary
 	currentExecutableName := filepath.Base(os.Args[0])
-	if strings.HasPrefix(currentExecutableName, "buildpackify") {
+	if strings.HasPrefix(currentExecutableName, "buildpackify-linux-") {
 		currentExecutablePath := filepath.Dir(os.Args[0])
 		fileInfos, err := ioutil.ReadDir(currentExecutablePath)
 		if err != nil {
 			log.Fatal(err)
 		}
 		for _, fileInfo := range fileInfos {
-			if strings.HasPrefix(fileInfo.Name(), "buildpackify") {
+			if strings.HasPrefix(fileInfo.Name(), "buildpackify-linux-") {
 				Cp(filepath.Join(currentExecutablePath, fileInfo.Name()), filepath.Join(outputPath, "bin"))
 			}
 		}
 	} else {
 		// This would typically happen when you are debugging where the file name will be different
 		Cp(os.Args[0], filepath.Join(outputPath, "bin"))
-		if err := os.Rename(filepath.Join(outputPath, "bin", currentExecutableName), filepath.Join(outputPath, "bin", "buildpackify-"+runtime.GOARCH)); err != nil {
+		if err := os.Rename(filepath.Join(outputPath, "bin", currentExecutableName), filepath.Join(outputPath, "bin", "buildpackify-linux-"+runtime.GOARCH)); err != nil {
 			log.Fatal(err)
 		}
 	}

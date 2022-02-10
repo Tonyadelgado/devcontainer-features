@@ -15,8 +15,8 @@ case $arch in
         ;;
 esac
 
-if [ -e "${script_dir}/buildpackify-${arch}" ]; then
-    "${script_dir}/buildpackify-${arch}" detect "$@"
+if [ -e "${script_dir}/buildpackify-linux-${arch}" ]; then
+    "${script_dir}/buildpackify-linux-${arch}" detect "$@"
     exit $?
 fi
 
