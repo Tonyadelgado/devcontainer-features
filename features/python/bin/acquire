@@ -144,4 +144,4 @@ fi
 
 rm -f /tmp/vscdc-settings.env
 
-update_marker "${marker_path}" "${target_path}" "${python_version}" "${python_binary_source}" "${optimize}" "${install_tools}" "${build_mode}"
+update_marker "${marker_path}" "${target_path}" "${python_version}" "${optimize}" "${install_tools}" "${build_mode}"

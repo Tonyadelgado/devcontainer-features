@@ -98,6 +98,9 @@ install_yarn() {
 # Use git to install Nvm (given this is safer than alternatives)
 install_nvm() {
     nvm_dir="${target_path}"/nvm
+    if [ -e "${nvm_dir}" ]; then
+        rm -rf "${nvm_dir}"
+    fi
     git clone --depth=1 \
         -c core.eol=lf \
         -c core.autocrlf=false \
@@ -108,7 +111,7 @@ install_nvm() {
         -b "${NVM_VERSION}" \
         "https://github.com/nvm-sh/nvm" "${nvm_dir}" 2>&1
     mkdir -p "${profile_d}"
-    symlink_if_ne "${nvm_dir}"/nvm.sh "${profile_d}"/nvm.sh 
+    echo -e "export NVM_DIR=\"${nvm_dir}\"\n[ -s \"\$NVM_DIR/nvm.sh\" ] && \\. \"\$NVM_DIR/nvm.sh\"\n[ -s \"\$NVM_DIR/bash_completion\" ] && \\. \"\$NVM_DIR/bash_completion\"" > "${profile_d}/nvm.sh"
     . "${nvm_dir}"/nvm.sh
     nvm clear-cache
 }
@@ -136,7 +139,7 @@ fi
 
 # Skip if already run with same args - handle caching
 marker_path="${target_path}/etc/dev-container-features/github.com/chuxel/devcontainer-features/${FEATURE_ID}-${SCRIPT_NAME}.marker"
-if ! check_marker "${marker_path}" "${target_path}" "${node_version}" "${install_yarn}" "${install_tools}" "${build_mode}"; then
+if ! check_marker "${marker_path}" "${target_path}" "${node_version}" "${install_tools}" "${build_mode}"; then
     echo "Node ${node_version} already installed. Skipping..."
     exit 0
 fi
@@ -153,4 +156,4 @@ if [ "${build_mode}" = "devcontainer" ] && [ "${install_tools}" = "true" ]; then
     install_yarn
 fi
 
-update_marker "${marker_path}" "${target_path}" "${node_version}" "${install_yarn}" "${install_nvm}" "${build_mode}"
+update_marker "${marker_path}" "${target_path}" "${node_version}" "${install_tools}" "${build_mode}"
