@@ -61,6 +61,7 @@ jobs:
       - name: Setup pack and devcontainer CLI
         id: setup_pack_devcontainer_clis
         run: |
+          export _BUILD_ARG_PACKCLI_TARGETPATH="$HOME/.local/bin"
           bash features/packcli/bin/acquire
           npm install -g @vscode/dev-container-cli
  
