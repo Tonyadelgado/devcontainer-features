@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+platform_dir=$1
+build_plan=$2
+# NOTE: Current working directory is application source directory
+
+buildpack_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [ ! -e "package.json" ]; then
+    echo "(*) package.json not found."
+    exit 100
+fi
+
+node_version="$(jq -r '.engines.node' package.json 2>/dev/null)"
+if [ "${node_version}" = "" ]; then
+    node_version="latest"
+fi
+
+echo "(*) Node version detected: ${node_version}"
+
+cat >> "${build_plan}" << EOF
+[[requires]]
+  name = "chuxel/devcontainer-features/nodejs"
+  [requires.metadata]
+    build = true
+    launch = true
+    option-version="${node_version}"
+EOF
+
+# Still want to return false since we added a requirement
+exit 0

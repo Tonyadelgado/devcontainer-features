@@ -74,6 +74,7 @@ RUN apt-get update \
         unzip \
         xz-utils \
         zlib1g-dev \
+        jq \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 #  ******* Dev container "build" image  *******

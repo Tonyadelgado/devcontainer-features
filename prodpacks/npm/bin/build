@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+layers_dir="$1"
+env_dir="$2/env"
+plan_path="$3"
+buildpack_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# NOTE: Current working directory is application source directory
+
+rm -rf node_modules
+npm install --omit dev
+
+cat >> "${layers_dir}/launch.toml" << EOF 
+[[processes]]
+  type = "web"
+  command = "npm"
+  args = ["start"]
+  direct = false
+  default = true
+EOF
+exit 0

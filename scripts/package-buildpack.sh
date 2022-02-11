@@ -18,7 +18,7 @@ mkdir -p /tmp/buildpack-out
 echo "(*) Packaging buildpack as ${uri}..."
 cd /tmp/buildpack-out
 echo -e '[buildpack]\nuri = "."' > /tmp/buildpack-out/package.toml
-pack buildpack package "${uri}" -c /tmp/buildpack-out/package.toml
+pack buildpack package "${uri}" --pull-policy if-not-present -p /tmp/buildpack-out
 cd ..
 rm -rf /tmp/buildpack-out
 

@@ -13,6 +13,6 @@ pack build -v test_image \
     -e "BP_CONTAINER_FEATURE_BUILDPACK_TEST_FOO=bar-override" \
     -e "BP_DCNB_BUILD_MODE=devcontainer" \
     --pull-policy if-not-present \
-    --builder ghcr.io/chuxel/devcontainer-features/builder-devcontainer \
+    --builder ghcr.io/chuxel/devcontainer-features/builder-devcontainer-empty \
     --trust-builder \
     --buildpack "${buildpack_root}"

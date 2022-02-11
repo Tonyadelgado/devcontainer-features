@@ -11,11 +11,11 @@ version="$(jq -r '.version' ../buildpack-settings.json)"
 uri_prefix="ghcr.io/${publisher}/${featureset_name}"
 
 echo "(*) Creating ${builder_type} Builder.."
-pack builder create "${uri_prefix}/builder-devcontainer" --pull-policy if-not-present -c ${builder_type}/builder-devcontainer.toml
-pack builder create "${uri_prefix}/builder-prod" --pull-policy if-not-present -c ${builder_type}/builder-prod.toml
+pack builder create "${uri_prefix}/builder-devcontainer-${builder_type}" --pull-policy if-not-present -c ${builder_type}/builder-devcontainer.toml
+pack builder create "${uri_prefix}/builder-prod-${builder_type}" --pull-policy if-not-present -c ${builder_type}/builder-prod.toml
 
 if [ "${publish}" = "true" ]; then
     echo "(*) Publishing..."
-    docker push "${uri_prefix}/builder-devcontainer"
-    docker push "${uri_prefix}/builder-prod"
+    docker push "${uri_prefix}/builder-devcontainer-${builder_type}"
+    docker push "${uri_prefix}/builder-prod-${builder_type}"
 fi
