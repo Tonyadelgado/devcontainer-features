@@ -142,7 +142,7 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	// Finally, update layer types based on what was detected when created
 	layer.LayerTypes = fc.LayerTypes
 
-	//TODO: What should we do with app folder contents in devcontainer build mode?
+	//TODO: What should we do with app folder contents in devcontainer build mode? Is it safe to delete?
 
 	return layer, nil
 }
