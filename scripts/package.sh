@@ -9,10 +9,11 @@ publisher="$(jq -r '.publisher' ../buildpack-settings.json)"
 featureset_name="$(jq -r '.featureSet' ../buildpack-settings.json)"
 version="$(jq -r '.version' ../buildpack-settings.json)"
 
-for pack_name in *; do
+for pack_name in "./*"; do
+    echo $pack_name
     if [  -d "${pack_name}" ] && [ "${pack_name}" != "test" ]; then
-        uri="ghcr.io/${publisher}/${featureset_name}/prodpack/${pack_name}:${version}"
-        echo "(*) Packaging ${pack_name} prodpack as ${uri}..."
+        uri="ghcr.io/${publisher}/${featureset_name}/${packs_dir}/${pack_name}:${version}"
+        echo "(*) Packaging ${pack_name} modepack as ${uri}..."
         pack buildpack package "${uri}" --pull-policy if-not-present -p ${pack_name}
         if [ "${publish}" = "true" ]; then
             # Expects that you are already logged in appropriatley
