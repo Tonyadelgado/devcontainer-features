@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"gonum.org/v1/gonum/stat/combin"
 )
 
 const DefaultApiVersion = "0.7"
@@ -159,9 +161,11 @@ func loadDevContainerJsonConent(applicationFolder string) ([]byte, string) {
 func LoadDevContainerJson(applicationFolder string) (DevContainerJson, string) {
 	var devContainerJson DevContainerJson
 	content, devContainerJsonPath := loadDevContainerJsonConent(applicationFolder)
-	err := json.Unmarshal(content, &devContainerJson)
-	if err != nil {
-		log.Fatal(err)
+	if devContainerJsonPath != "" {
+		err := json.Unmarshal(content, &devContainerJson)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	return devContainerJson, devContainerJsonPath
 }
@@ -169,9 +173,11 @@ func LoadDevContainerJson(applicationFolder string) (DevContainerJson, string) {
 func LoadDevContainerJsonAsMap(applicationFolder string) (map[string]json.RawMessage, string) {
 	var jsonMap map[string]json.RawMessage
 	content, devContainerJsonPath := loadDevContainerJsonConent(applicationFolder)
-	err := json.Unmarshal(content, &jsonMap)
-	if err != nil {
-		log.Fatal(err)
+	if devContainerJsonPath != "" {
+		err := json.Unmarshal(content, &jsonMap)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	return jsonMap, devContainerJsonPath
 }
@@ -192,7 +198,7 @@ func GetOptionSelections(feature FeatureConfig, buildpackSettings BuildpackSetti
 	optionSelections := make(map[string]string)
 	// If in dev container mode, parse devcontainer.json features (if any)
 	if GetContainerImageBuildMode() == "devcontainer" {
-		fullFeatureId := GetFullFeatureId(feature, buildpackSettings)
+		fullFeatureId := GetFullFeatureId(feature, buildpackSettings, "/")
 		for featureName, jsonOptionSelections := range devContainerJson.Features {
 			if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
 				if reflect.TypeOf(jsonOptionSelections).String() == "string" {
@@ -238,8 +244,11 @@ func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]stri
 }
 
 // e.g. chuxel/devcontainer/features/packcli
-func GetFullFeatureId(feature FeatureConfig, buildpackSettings BuildpackSettings) string {
-	return buildpackSettings.Publisher + "/" + buildpackSettings.FeatureSet + "/" + feature.Id
+func GetFullFeatureId(feature FeatureConfig, buildpackSettings BuildpackSettings, separator string) string {
+	if separator == "" {
+		separator = "/"
+	}
+	return buildpackSettings.Publisher + separator + buildpackSettings.FeatureSet + separator + feature.Id
 }
 
 func CpR(sourcePath string, targetFolderPath string) {
@@ -312,4 +321,12 @@ func WriteFile(filename string, fileBytes []byte) error {
 		return err
 	}
 	return nil
+}
+
+func GetAllCombinations(arraySize int) [][]int {
+	combinationList := [][]int{}
+	for i := 1; i <= arraySize; i++ {
+		combinationList = append(combinationList, combin.Combinations(arraySize, i)...)
+	}
+	return combinationList
 }

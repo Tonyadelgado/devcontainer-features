@@ -30,6 +30,7 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 
 	// See if should provide any features
 	var plan libcnb.BuildPlan
+	onlyProvided := []libcnb.BuildPlanProvide{}
 	for _, feature := range featuresJson.Features {
 		detected, provide, require, err := detectFeature(context, buildpackSettings, feature, devContainerJson)
 		if err != nil {
@@ -39,22 +40,34 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 			log.Printf("- %s detected\n", feature.Id)
 			plan.Provides = append(plan.Provides, provide)
 			plan.Requires = append(plan.Requires, require)
+		} else {
+			onlyProvided = append(onlyProvided, provide)
+			log.Printf("- %s provided\n", provide.Name)
 		}
-	}
 
-	// Nothing detected
-	if len(plan.Provides) == 0 {
-		result.Pass = false
 	}
 
 	result.Pass = true
 	result.Plans = append(result.Plans, plan)
+	// Generate all permutations where something is just provided
+	combinationList := GetAllCombinations(len(onlyProvided))
+	for _, combination := range combinationList {
+		var optionalPlan libcnb.BuildPlan
+		copy(optionalPlan.Requires, plan.Requires)
+		copy(optionalPlan.Provides, plan.Provides)
+		for _, i := range combination {
+			optionalPlan.Provides = append(optionalPlan.Provides, onlyProvided[i])
+		}
+		log.Println(optionalPlan.Provides)
+		result.Plans = append(result.Plans, optionalPlan)
+	}
+
 	return result, nil
 }
 
 func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSettings, feature FeatureConfig, devContainerJson DevContainerJson) (bool, libcnb.BuildPlanProvide, libcnb.BuildPlanRequire, error) {
 	// e.g. chuxel/devcontainer/features/packcli
-	fullFeatureId := GetFullFeatureId(feature, buildpackSettings)
+	fullFeatureId := GetFullFeatureId(feature, buildpackSettings, "/")
 	provide := libcnb.BuildPlanProvide{Name: fullFeatureId}
 	require := libcnb.BuildPlanRequire{Name: fullFeatureId}
 

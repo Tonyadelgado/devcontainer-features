@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -73,8 +74,8 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 }
 
 func (fc FeatureLayerContributor) FullFeatureId() string {
-	// e.g. chuxel/devcontainer-features/packcli
-	return GetFullFeatureId(fc.Feature, fc.BuildpackSettings)
+	// e.g. chuxel-devcontainer-features-packcli
+	return GetFullFeatureId(fc.Feature, fc.BuildpackSettings, "/")
 }
 
 // Implementation of libcnb.LayerContributor.Name
@@ -165,6 +166,13 @@ func getLayerContributorForFeature(feature FeatureConfig, buildpackSettings Buil
 				} else {
 					// default is true
 					field.Set(reflect.ValueOf(true))
+				}
+			}
+			// See if feature options were passed using option-<optionname>
+			for optionName := range feature.Options {
+				selection, containsKey := entry.Metadata["option-"+strings.ToLower(optionName)]
+				if containsKey {
+					layerContributor.OptionSelections[optionName] = fmt.Sprint(selection)
 				}
 			}
 			layerContributor.LayerTypes = layerTypes
