@@ -1,13 +1,13 @@
 [[buildpacks]]
-  id = "chuxel/devcontainer-features/mode/devcontainer"
-  uri = "../../modepacks/devcontainer"
+  id = "${publisher}/${featureset}/mode/devcontainer"
+  uri = "${toml_dir}/../../modepacks/devcontainer"
 
 [[order]]
 
     [[order.group]]
-      id = "chuxel/devcontainer-features/mode/devcontainer"
+      id = "${publisher}/${featureset}/mode/devcontainer"
 
 [stack]
   id = "com.chuxel.stacks.test.bionic"
-  run-image = "ghcr.io/chuxel/devcontainer-features/stack-devcontainer-run-image"
-  build-image = "ghcr.io/chuxel/devcontainer-features/stack-devcontainer-build-image"
+  run-image = "ghcr.io/${publisher}/${featureset}/stack-devcontainer-run-image"
+  build-image = "ghcr.io/${publisher}/${featureset}/stack-devcontainer-build-image"

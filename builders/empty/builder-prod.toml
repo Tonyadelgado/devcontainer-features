@@ -2,5 +2,5 @@
 
 [stack]
   id = "com.chuxel.stacks.test.bionic"
-  run-image = "ghcr.io/chuxel/devcontainer-features/stack-run-image"
-  build-image = "ghcr.io/chuxel/devcontainer-features/stack-build-image"
+  run-image = "ghcr.io/${publisher}/${featureset}/stack-run-image"
+  build-image = "ghcr.io/${publisher}/${featureset}/stack-build-image"

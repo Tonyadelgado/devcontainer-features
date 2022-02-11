@@ -1,22 +1,22 @@
 # https://buildpacks.io/docs/reference/config/builder-config/
 [[buildpacks]]
-  id = "chuxel/devcontainer-features"
-  uri = "docker://ghcr.io/chuxel/devcontainer-features/devpack:v0.0.23"
+  id = "${publisher}/${featureset}"
+  uri = "docker://ghcr.io/${publisher}/${featureset}/devpack:${version}"
 
 [[buildpacks]]
-  id = "chuxel/devcontainer-features/mode/devcontainer"
-  uri = "../../modepacks/devcontainer"
+  id = "${publisher}/${featureset}/mode/devcontainer"
+  uri = "${toml_dir}/../../modepacks/devcontainer"
 
 [[order]]
 
     [[order.group]]
-    id = "chuxel/devcontainer-features/mode/devcontainer"
+    id = "${publisher}/${featureset}/mode/devcontainer"
 
     [[order.group]]
-    id = "chuxel/devcontainer-features"
+    id = "${publisher}/${featureset}"
     optional = true
 
 [stack]
 id = "com.chuxel.stacks.test.bionic"
-run-image = "ghcr.io/chuxel/devcontainer-features/stack-devcontainer-run-image"
-build-image = "ghcr.io/chuxel/devcontainer-features/stack-devcontainer-build-image"
+run-image = "ghcr.io/${publisher}/${featureset}/stack-devcontainer-run-image"
+build-image = "ghcr.io/${publisher}/${featureset}/stack-devcontainer-build-image"
