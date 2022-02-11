@@ -5,8 +5,8 @@ export DOCKER_BUILDKIT=1
 publish="${1:-false}"
 
 # Package prodpacks and modepacks
-./scripts/package.sh prodpacks
-./scripts/package.sh modepacks
+./scripts/package.sh prodpacks "${publish}"
+./scripts/package.sh modepacks "${publish}"
 
 # Create and package devpack
 publisher="$(jq -r '.publisher' buildpack-settings.json)"
