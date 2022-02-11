@@ -23,10 +23,15 @@
 	],
 	"settings": {
 		"cSpell.words": [
-			"buildpackify",
+			"buidpack",
 			"buildpack",
+			"buildpackify",
+			"Buldpack",
+			"dcnb",
+			"gonum",
 			"libbuildpackify",
-			"libcnb"
+			"libcnb",
+			"packcli"
 		]
 	}
 }

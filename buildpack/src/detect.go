@@ -47,7 +47,6 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 
 	}
 
-	result.Pass = true
 	result.Plans = append(result.Plans, plan)
 	// Generate all permutations where something is just provided
 	combinationList := GetAllCombinations(len(onlyProvided))
@@ -58,10 +57,11 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 		for _, i := range combination {
 			optionalPlan.Provides = append(optionalPlan.Provides, onlyProvided[i])
 		}
-		log.Println(optionalPlan.Provides)
 		result.Plans = append(result.Plans, optionalPlan)
 	}
 
+	// Always pass since we can provide features even if they're not used by this buildpack
+	result.Pass = true
 	return result, nil
 }
 

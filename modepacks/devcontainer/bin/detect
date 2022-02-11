@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+# Error if we're not using a dev container image
+if [ ! -e "/usr/local/etc/dev-container-features/dcnb-build-mode" ]; then
+    echo "Build mode not found. Add it to the file /usr/local/etc/dev-container-features/dcnb-build-mode in your stack's build images."
+    exit 1
+fi
+if [ "$(cat /usr/local/etc/dev-container-features/dcnb-build-mode)" != "devcontainer" ]; then
+    echo "Incorrect stack build image selected for devcontainer use."
+    exit 1
+fi
+
+exit 0

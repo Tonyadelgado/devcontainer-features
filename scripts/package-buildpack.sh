@@ -7,7 +7,7 @@ publish="${1:-false}"
 publisher="$(jq -r '.publisher' buildpack-settings.json)"
 featureset_name="$(jq -r '.featureSet' buildpack-settings.json)"
 version="$(jq -r '.version' buildpack-settings.json)"
-uri="ghcr.io/${publisher}/${featureset_name}/buildpack:${version}"
+uri="ghcr.io/${publisher}/${featureset_name}/devpack:${version}"
 
 ./buildpack/scripts/compile.sh
 

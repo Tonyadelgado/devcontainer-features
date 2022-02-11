@@ -45,7 +45,7 @@ func FinalizeImage(imageToFinalize string, applicationFolder string) {
 	if buildMode == "devcontainer" {
 		log.Println("Loading devcontainer.json if present.")
 		devContainerJsonMap, devContainerJsonPath = LoadDevContainerJsonAsMap(applicationFolder)
-		// Unmarshall devcontainer.json features into a map
+		// Un-marshall devcontainer.json features into a map
 		if err := json.Unmarshal(devContainerJsonMap["features"], &devContainerJsonFeatureMap); err != nil {
 			log.Fatal(err)
 		}
@@ -73,7 +73,7 @@ func FinalizeImage(imageToFinalize string, applicationFolder string) {
 	}
 
 	// Always disable command override, force user env probe
-	devContainerJsonMap["overrideCommand"] = toJsonRawMessage(false)
+	//devContainerJsonMap["overrideCommand"] = toJsonRawMessage(false)
 	devContainerJsonMap["userEnvProbe"] = toJsonRawMessage("loginInteractiveShell")
 
 	// Append ".buildpack" to avoid overwriting

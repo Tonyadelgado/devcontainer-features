@@ -10,7 +10,7 @@
 
 snippet="$(cat << 'EOF'
 # Ensure all interactive or login shells are initalized via /cnb/lifecycle/launcher (which is also the default entrypoint)
-if [ ! -z "${CNB_APP_DIR}" ] && [ -z "${DCNB_ENV_LOADED}" ]; then export DCNB_ENV_LOADED=true; mapfile -d $'\\0' _cmd_line < /proc/$$/cmdline; exec /cnb/lifecycle/launcher exec "${_cmd_line[@]//\"/\\\\\"}"; fi
+if [ ! -z "${CNB_APP_DIR}" ] && [ -z "${DCNB_ENV_LOADED}" ]; then export DCNB_ENV_LOADED=true; mapfile -d $'\\0' _cmd_line < /proc/$$/cmdline; exec /cnb/lifecycle/launcher -- "${_cmd_line[@]//\"/\\\\\"}"; fi
 
 EOF
 )"

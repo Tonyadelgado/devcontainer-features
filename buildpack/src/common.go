@@ -21,6 +21,10 @@ const FeaturesetMetadataId = MetadataIdPrefix + ".featureset"
 const FeaturesMetadataId = MetadataIdPrefix + ".features"
 const FeatureLayerMetadataId = MetadataIdPrefix + ".feature"
 const ContainerImageBuildModeEnvVarName = "BP_DCNB_BUILD_MODE"
+const DefaultContainerImageBuildMode = "production"
+const ContainerImageBuildMarkerPath = "/usr/local/etc/dev-container-features/dcnb-build-mode"
+
+var cachedContainerImageBuildMode = ""
 
 type NonZeroExitError struct {
 	ExitCode int
@@ -187,11 +191,22 @@ func GetFeatureScriptPath(buidpackPath string, featureId string, script string) 
 }
 
 func GetContainerImageBuildMode() string {
-	buildMode := os.Getenv(ContainerImageBuildModeEnvVarName)
-	if buildMode == "" {
-		return "devcontainer"
+	if cachedContainerImageBuildMode != "" {
+		return cachedContainerImageBuildMode
 	}
-	return buildMode
+	cachedContainerImageBuildMode := os.Getenv(ContainerImageBuildModeEnvVarName)
+	if cachedContainerImageBuildMode == "" {
+		if _, err := os.Stat(ContainerImageBuildMarkerPath); err != nil {
+			cachedContainerImageBuildMode = DefaultContainerImageBuildMode
+		} else {
+			fileBytes, err := os.ReadFile(ContainerImageBuildMarkerPath)
+			if err != nil {
+				cachedContainerImageBuildMode = string(fileBytes)
+			}
+		}
+
+	}
+	return cachedContainerImageBuildMode
 }
 
 func GetOptionSelections(feature FeatureConfig, buildpackSettings BuildpackSettings, devContainerJson DevContainerJson) map[string]string {

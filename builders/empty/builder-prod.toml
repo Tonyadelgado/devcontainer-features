@@ -1,9 +1,6 @@
 [[order]]
 
-# Stack that will be used by the builder
 [stack]
-id = "com.chuxel.stacks.test.bionic"
-# This image is used at runtime
-run-image = "ghcr.io/chuxel/devcontainer-features/stack-run-image"
-# This image is used at build-time
-build-image = "ghcr.io/chuxel/devcontainer-features/stack-build-image"
+  id = "com.chuxel.stacks.test.bionic"
+  run-image = "ghcr.io/chuxel/devcontainer-features/stack-run-image"
+  build-image = "ghcr.io/chuxel/devcontainer-features/stack-build-image"

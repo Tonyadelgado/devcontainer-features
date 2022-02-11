@@ -4,5 +4,11 @@
     },
 	"scripts": {
 		"start": "echo ITS ALIVE!!"
+	},
+	"devDependencies": {
+		"gulp":"^4.0.2"
+	},
+	"dependencies": {
+		"async":"^3.2.3"
 	}
 }

@@ -7,8 +7,8 @@
   id = "chuxel/devcontainer-features/prodpacks/npm"
   uri = "../../prodpacks/npm"
 
-
 [[order]]
+
     [[order.group]]
     id = "chuxel/devcontainer-features"
     optional = true

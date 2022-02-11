@@ -113,12 +113,12 @@ find_version_from_git_tags() {
     local escaped_separator=${separator//./\\.}
     local break_fix_digit_regex
     if [ "${last_part_optional}" = "true" ]; then
-        break_fix="(${escaped_separator}[0-9]+)?"
+        break_fix_digit_regex="(${escaped_separator}[0-9]+)?"
     else
-        break_fix="${escaped_separator}[0-9]+"
+        break_fix_digit_regex="${escaped_separator}[0-9]+"
     fi
     
-    local version_regex="[0-9]+${escaped_separator}[0-9]+${break_fix_digit_regex}${version_suffix_regex}"
+    local version_regex="[0-9]+${escaped_separator}[0-9]+${break_fix_digit_regex}${version_suffix_regex//./\\.}"
     # If we're passed a matching version number, just return it
     if ! grep -E "^${versionMatchRegex}$" > /dev/null 2>&1; then
         local version_list="$(git ls-remote --tags ${repository} | grep -oP "${prefix}\\K${version_regex}$" | tr -d ' ' | tr "${separator}" "." | sort -rV)"
@@ -126,7 +126,7 @@ find_version_from_git_tags() {
             declare -g ${variable_name}="$(echo "${version_list}" | head -n 1)"
         else
             set +e
-            declare -g ${variable_name}="$(echo "${version_list}" | grep -E -m 1 "^${requested_version//./\\.}([\\.\\s]|$)")"
+            declare -g ${variable_name}="$(echo "${version_list}" | grep -E -m 1 "^${requested_version//./\\.}([\\.\\s]|${version_suffix_regex//./\\.}|$)")"
             set -e
         fi
         if [ -z "${!variable_name}" ] || ! echo "${version_list}" | grep "^${!variable_name//./\\.}$" > /dev/null 2>&1; then

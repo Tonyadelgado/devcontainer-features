@@ -1,9 +1,13 @@
+[[buildpacks]]
+  id = "chuxel/devcontainer-features/mode/devcontainer"
+  uri = "../../modepacks/devcontainer"
+
 [[order]]
 
-# Stack that will be used by the builder
+    [[order.group]]
+      id = "chuxel/devcontainer-features/mode/devcontainer"
+
 [stack]
-id = "com.chuxel.stacks.test.bionic"
-# This image is used at runtime
-run-image = "ghcr.io/chuxel/devcontainer-features/stack-devcontainer-run-image"
-# This image is used at build-time
-build-image = "ghcr.io/chuxel/devcontainer-features/stack-devcontainer-build-image"
+  id = "com.chuxel.stacks.test.bionic"
+  run-image = "ghcr.io/chuxel/devcontainer-features/stack-devcontainer-run-image"
+  build-image = "ghcr.io/chuxel/devcontainer-features/stack-devcontainer-build-image"

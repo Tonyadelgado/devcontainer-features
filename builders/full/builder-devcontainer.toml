@@ -1,9 +1,16 @@
 # https://buildpacks.io/docs/reference/config/builder-config/
 [[buildpacks]]
-id = "chuxel/devcontainer-features"
-uri = "docker://ghcr.io/chuxel/devcontainer-features/buildpack:v0.0.23"
+  id = "chuxel/devcontainer-features"
+  uri = "docker://ghcr.io/chuxel/devcontainer-features/devpack:v0.0.23"
+
+[[buildpacks]]
+  id = "chuxel/devcontainer-features/mode/devcontainer"
+  uri = "../../modepacks/devcontainer"
 
 [[order]]
+
+    [[order.group]]
+    id = "chuxel/devcontainer-features/mode/devcontainer"
 
     [[order.group]]
     id = "chuxel/devcontainer-features"

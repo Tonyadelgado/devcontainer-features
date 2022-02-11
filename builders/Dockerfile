@@ -75,10 +75,18 @@ RUN apt-get update \
         xz-utils \
         zlib1g-dev \
         jq \
-    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/* \
+    #
+    # The build mode must be set in this file for devpacks to know which mode to run in.
+    # They are in "production" mode by default, but we'll set it to be sure.
+    #
+    && mkdir -p "/usr/local/etc/dev-container-features/" \
+    && echo 'production' > "/usr/local/etc/dev-container-features/dcnb-build-mode"
 
 #  ******* Dev container "build" image  *******
 FROM build as devcontainer-build
+# Set the devpack build mode to devcontainer
+RUN echo 'devcontainer' > "/usr/local/etc/dev-container-features/dcnb-build-mode"
 
 #  ******* Dev container "run" image  *******
 FROM devcontainer-build as devcontainer-run
