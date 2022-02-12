@@ -28,7 +28,9 @@
 			"buildpackify",
 			"Buldpack",
 			"dcnb",
+			"godotenv",
 			"gonum",
+			"hujson",
 			"libbuildpackify",
 			"libcnb",
 			"packcli"

@@ -26,7 +26,7 @@ echo "export BUILDPACK_TEST_PROFILE_D_WORKED=true" > "${profile_d}/buildpack-tes
 chmod +x "${profile_d}/buildpack-test.sh"
 
 mkdir -p "${target_path}"/bin
-cat << EOF >> "${target_path}"/bin/foo
+cat << EOF > "${target_path}"/bin/foo
 #!/bin/sh
 echo "Foo!! Foo is ${foo}"
 echo "Marker: \$(cat ${marker_path})"

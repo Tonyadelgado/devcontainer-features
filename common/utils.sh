@@ -134,7 +134,7 @@ find_version_from_git_tags() {
             exit 1
         fi
     fi
-    echo "${variable_name}=${!variable_name}"
+    echo "Adjusted ${variable_name}=${!variable_name}"
 }
 
 # Checks if a marker file exists with the correct contents

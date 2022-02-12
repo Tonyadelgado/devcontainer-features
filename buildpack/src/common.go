@@ -7,11 +7,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/tailscale/hujson"
 	"gonum.org/v1/gonum/stat/combin"
 )
 
@@ -154,11 +154,18 @@ func loadDevContainerJsonConent(applicationFolder string) ([]byte, string) {
 	if devContainerJsonPath == "" {
 		return []byte{}, devContainerJsonPath
 	}
-
 	content, err := ioutil.ReadFile(devContainerJsonPath)
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Strip out comments to enable parsing
+	ast, err := hujson.Parse(content)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ast.Standardize()
+	content = ast.Pack()
+
 	return content, devContainerJsonPath
 }
 
@@ -170,6 +177,7 @@ func LoadDevContainerJson(applicationFolder string) (DevContainerJson, string) {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 	}
 	return devContainerJson, devContainerJsonPath
 }
@@ -201,45 +209,13 @@ func GetContainerImageBuildMode() string {
 		} else {
 			fileBytes, err := os.ReadFile(ContainerImageBuildMarkerPath)
 			if err != nil {
-				cachedContainerImageBuildMode = string(fileBytes)
+				cachedContainerImageBuildMode = DefaultContainerImageBuildMode
+			} else {
+				cachedContainerImageBuildMode = strings.TrimSpace(string(fileBytes))
 			}
 		}
-
 	}
 	return cachedContainerImageBuildMode
-}
-
-func GetOptionSelections(feature FeatureConfig, buildpackSettings BuildpackSettings, devContainerJson DevContainerJson) map[string]string {
-	optionSelections := make(map[string]string)
-	// If in dev container mode, parse devcontainer.json features (if any)
-	if GetContainerImageBuildMode() == "devcontainer" {
-		fullFeatureId := GetFullFeatureId(feature, buildpackSettings, "/")
-		for featureName, jsonOptionSelections := range devContainerJson.Features {
-			if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
-				if reflect.TypeOf(jsonOptionSelections).String() == "string" {
-					optionSelections["version"] = jsonOptionSelections.(string)
-				} else {
-					// Use reflection to convert the from a map[string]interface{} to a map[string]string
-					mapRange := reflect.ValueOf(jsonOptionSelections).MapRange()
-					for mapRange.Next() {
-						optionSelections[mapRange.Key().String()] = mapRange.Value().Elem().String()
-					}
-				}
-				break
-			}
-		}
-	}
-
-	// Look for BP_CONTAINER_FEATURE_<feature.Id>_<option> environment variables, convert
-	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
-	for optionName := range feature.Options {
-		optionNameSafe := strings.ReplaceAll(strings.ToUpper(optionName), "-", "_")
-		optionValue := os.Getenv("BP_CONTAINER_FEATURE_" + idSafe + "_" + optionNameSafe)
-		if optionValue != "" {
-			optionSelections[optionName] = optionValue
-		}
-	}
-	return optionSelections
 }
 
 func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]string) []string {

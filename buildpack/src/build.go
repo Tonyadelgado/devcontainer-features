@@ -39,15 +39,13 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	var result libcnb.BuildResult
 
 	// Load devcontainer.json, features.json, buildpack settings
-	devContainerJson, _ := LoadDevContainerJson(context.Application.Path)
 	buildpackSettings := LoadBuildpackSettings(context.Buildpack.Path)
 	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
 	log.Println("Number of features in Buildpack:", len(featuresJson.Features))
 
 	// Process each feature if it is in the buildpack plan in the order they appear in features.json
 	for _, feature := range featuresJson.Features {
-		optionSelections := GetOptionSelections(feature, buildpackSettings, devContainerJson)
-		shouldAddLayer, layerContributor := getLayerContributorForFeature(feature, buildpackSettings, optionSelections, context.Plan)
+		shouldAddLayer, layerContributor := getLayerContributorForFeature(feature, buildpackSettings, context.Plan)
 		if shouldAddLayer {
 			layerContributor.Context = context
 			result.Layers = append(result.Layers, layerContributor)
@@ -134,11 +132,6 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 		}
 	*/
 
-	//TODO: Remove these test lines
-	layer.SharedEnvironment.Prepend("PATH", ":", "/buildpack/test/before")
-	layer.SharedEnvironment.Append("PATH", ":", "/buildpack/test/after")
-	layer.SharedEnvironment.Override("TEST3", "buildpack")
-
 	// Finally, update layer types based on what was detected when created
 	layer.LayerTypes = fc.LayerTypes
 
@@ -148,8 +141,8 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 }
 
 // See if the build plan includes an entry for this feature. If so, return a LayerContributor for it
-func getLayerContributorForFeature(feature FeatureConfig, buildpackSettings BuildpackSettings, optionSelections map[string]string, plan libcnb.BuildpackPlan) (bool, FeatureLayerContributor) {
-	layerContributor := FeatureLayerContributor{Feature: feature, BuildpackSettings: buildpackSettings, OptionSelections: optionSelections}
+func getLayerContributorForFeature(feature FeatureConfig, buildpackSettings BuildpackSettings, plan libcnb.BuildpackPlan) (bool, FeatureLayerContributor) {
+	layerContributor := FeatureLayerContributor{Feature: feature, BuildpackSettings: buildpackSettings}
 	// See if detect said should provide this feature
 	for _, entry := range plan.Entries {
 		// See if this entry is for this feature
@@ -170,14 +163,17 @@ func getLayerContributorForFeature(feature FeatureConfig, buildpackSettings Buil
 					field.Set(reflect.ValueOf(true))
 				}
 			}
-			// See if feature options were passed using option-<optionname>
+			layerContributor.LayerTypes = layerTypes
+			// See if feature options were passed using option-<optionname> from
+			// either the "detect" command or from a dependant buildpack
+			optionSelections := make(map[string]string)
 			for optionName := range feature.Options {
 				selection, containsKey := entry.Metadata["option-"+strings.ToLower(optionName)]
 				if containsKey {
-					layerContributor.OptionSelections[optionName] = fmt.Sprint(selection)
+					optionSelections[optionName] = fmt.Sprint(selection)
 				}
 			}
-			layerContributor.LayerTypes = layerTypes
+			layerContributor.OptionSelections = optionSelections
 
 			return true, layerContributor
 		}

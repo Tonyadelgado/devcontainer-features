@@ -1,10 +1,11 @@
 {
-	"image": "test_image",
+	// Some comments
+	"image": "test_image",  // Other comments 
 	"features": {
-		"chuxel/devcontainer-features/packcli": "latest",
+		"chuxel/devcontainer-features/packcli": "0.23.0",
 		"chuxel/devcontainer-features/buildpack-test": {
 			"version": "from-devcontainer.json",
 			"foo": "bar"
 		}
-	}
+	} /* Comment too */
 }

@@ -11,7 +11,7 @@ cat >> "${layers_dir}/launch.toml" << EOF
 [[processes]]
   type = "devcontainer"
   command = "bash"
-  direct = true
+  direct = false
   default = true
 EOF
 exit 0

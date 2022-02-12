@@ -4,10 +4,14 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"reflect"
 	"strings"
 
 	"github.com/buildpacks/libcnb"
+	"github.com/joho/godotenv"
 )
+
+const DevContainerFeaturesEnvPath = "/tmp/devcontainer-features.env"
 
 type FeatureDetector struct {
 	// Implements libcnb.Detector
@@ -25,10 +29,15 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 	// TODO: Enable detect script to return options that should then be passed on to the builder via metadata, then drop devcontainer.json parsing in the build stage
 
 	// Load features.json, buildpack settings
-	devContainerJson, _ := LoadDevContainerJson(context.Application.Path)
 	buildpackSettings := LoadBuildpackSettings(context.Buildpack.Path)
 	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
 	log.Println("Number of features in Buildpack:", len(featuresJson.Features))
+
+	// Load devcontainer.json if in devcontainer build mode
+	var devContainerJson DevContainerJson
+	if GetContainerImageBuildMode() == "devcontainer" {
+		devContainerJson, _ = LoadDevContainerJson(context.Application.Path)
+	}
 
 	// See if should provide any features
 	var plan libcnb.BuildPlan
@@ -71,21 +80,15 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSett
 	// e.g. chuxel/devcontainer/features/packcli
 	fullFeatureId := GetFullFeatureId(feature, buildpackSettings, "/")
 	provide := libcnb.BuildPlanProvide{Name: fullFeatureId}
-	require := libcnb.BuildPlanRequire{Name: fullFeatureId}
+	require := libcnb.BuildPlanRequire{Name: fullFeatureId, Metadata: make(map[string]interface{})}
 
-	// Check environment to see if BP_CONTAINER_FEATURE_<feature.Id> is set
-	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
-	if os.Getenv("BP_CONTAINER_FEATURE_"+idSafe) != "" {
-		return true, provide, require, nil
-	}
-
-	// If we're in devcontainer mode, and its referenced in devcontainer.json, return true
-	if GetContainerImageBuildMode() == "devcontainer" {
-		for featureName := range devContainerJson.Features {
-			if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
-				return true, provide, require, nil
-			}
+	// Add any option selections from BP_CONTAINER_FEATURE_<feature.Id>_<option> env vars and devcontainer.json (in devcontainer mode)
+	detected, optionSelections := detectOptionSelections(feature, buildpackSettings, devContainerJson)
+	if detected {
+		for option, selection := range optionSelections {
+			require.Metadata["option-"+strings.ToLower(option)] = selection
 		}
+		return true, provide, require, nil
 	}
 
 	// Otherwise, check if detect script for feature exists, return not detected otherwise
@@ -95,10 +98,10 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSett
 		return false, provide, require, nil
 	}
 
-	// Execute the script
+	// Execute the script - set path to where a resulting devcontainer-features.env should be placed as env var
 	log.Printf("- Executing %s\n", detectScriptPath)
-	optionSelections := GetOptionSelections(feature, buildpackSettings, devContainerJson)
 	env := GetBuildEnvironment(feature, optionSelections)
+	env = append(env, "DEVCONTAINER_FEATURES_ENV_PATH="+DevContainerFeaturesEnvPath)
 	logWriter := log.Writer()
 	detectCommand := exec.Command(detectScriptPath)
 	detectCommand.Env = env
@@ -109,12 +112,69 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSett
 	}
 
 	exitCode := detectCommand.ProcessState.ExitCode()
-	switch exitCode {
-	case 0: // Detected
+	if exitCode == 0 {
+		// Read option selections if any are provided
+		if _, err := os.Stat(DevContainerFeaturesEnvPath); err != nil {
+			if err := godotenv.Load(DevContainerFeaturesEnvPath); err != nil {
+				log.Fatal(err)
+			}
+			_, optionSelections = getOptionSelectionsFromEnv(feature, optionSelections, "_BUILD_ARG_")
+			for option, selection := range optionSelections {
+				require.Metadata["option-"+strings.ToLower(option)] = selection
+			}
+		}
 		return true, provide, require, nil
-	case 100: // Not detected
+	}
+	// 100 means failed, other error codes mean an error ocurred
+	if exitCode == 100 {
 		return false, provide, require, nil
-	default:
+	} else {
 		return false, provide, require, NonZeroExitError{ExitCode: exitCode}
 	}
+}
+
+func detectOptionSelections(feature FeatureConfig, buildpackSettings BuildpackSettings, devContainerJson DevContainerJson) (bool, map[string]string) {
+	optionSelections := make(map[string]string)
+	detectedDevContainerJson := false
+	// If in dev container mode, parse devcontainer.json features (if any)
+	if GetContainerImageBuildMode() == "devcontainer" {
+		fullFeatureId := GetFullFeatureId(feature, buildpackSettings, "/")
+		for featureName, jsonOptionSelections := range devContainerJson.Features {
+			log.Println(featureName, "=", jsonOptionSelections)
+			if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
+				detectedDevContainerJson = true
+				if reflect.TypeOf(jsonOptionSelections).String() == "string" {
+					optionSelections["version"] = jsonOptionSelections.(string)
+				} else {
+					// Use reflection to convert the from a map[string]interface{} to a map[string]string
+					mapRange := reflect.ValueOf(jsonOptionSelections).MapRange()
+					for mapRange.Next() {
+						optionSelections[mapRange.Key().String()] = mapRange.Value().Elem().String()
+					}
+				}
+				break
+			}
+		}
+	}
+
+	// Look for BP_CONTAINER_FEATURE_<feature.Id>_<option> environment variables, convert
+	detectedEnv, optionselections := getOptionSelectionsFromEnv(feature, optionSelections, "BP_CONTAINER_FEATURE_")
+	return (detectedDevContainerJson || detectedEnv), optionselections
+}
+
+func getOptionSelectionsFromEnv(feature FeatureConfig, optionSelections map[string]string, prefix string) (bool, map[string]string) {
+	detected := false
+	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
+	enabledEnvVarVal := os.Getenv(prefix + idSafe)
+	if enabledEnvVarVal != "" && enabledEnvVarVal != "false" {
+		detected = true
+	}
+	for optionName := range feature.Options {
+		optionNameSafe := strings.ReplaceAll(strings.ToUpper(optionName), "-", "_")
+		optionValue := os.Getenv(prefix + idSafe + "_" + optionNameSafe)
+		if optionValue != "" {
+			optionSelections[optionName] = optionValue
+		}
+	}
+	return detected, optionSelections
 }

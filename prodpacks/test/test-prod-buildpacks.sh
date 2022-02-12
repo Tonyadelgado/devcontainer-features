@@ -11,7 +11,6 @@ prodpack_root="${script_dir}/.."
 "${script_dir}"/../../builders/create-builders.sh empty
 cd "${script_dir}/test-project"
 pack build -v prod_test_image \
-    -e "BP_DCNB_BUILD_MODE=production" \
     --pull-policy if-not-present \
     --builder ghcr.io/chuxel/devcontainer-features/builder-prod-empty \
     --trust-builder \
