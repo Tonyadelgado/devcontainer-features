@@ -100,7 +100,7 @@
 		},
 		{
 			"id": "buildpack-test",
-			"name": "Test feature for buildpackify",
+			"name": "Test feature for devpacker",
 			"containerEnv": {
 				"TEST": "true",
 				"PATH": "/i/am/before:${PATH}:/i/am/after",

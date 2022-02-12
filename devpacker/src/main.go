@@ -31,9 +31,11 @@ func main() {
 	case "finalize":
 		// Used to generate apply final build with the dev container CLI, output a devcontainer.json
 		executeFinalizeCommand(nonFlagArgs[1:], buildMode)
-	default:
+	case "_internal":
 		// If doing a build or detect command, pass of processing to FeatureBuilder, FeatureDetector respectively
-		libcnb.Main(FeatureDetector{}, FeatureBuilder{}, libcnb.WithArguments(nonFlagArgs))
+		libcnb.Main(FeatureDetector{}, FeatureBuilder{}, libcnb.WithArguments(nonFlagArgs[1:]))
+	default:
+		fmt.Println("Invalid devpacker command:", nonFlagArgs[0])
 	}
 }
 
@@ -52,7 +54,7 @@ func executeGenerateCommand(args []string) {
 func executeFinalizeCommand(args []string, buildMode string) {
 	applicationFolder := "."
 	if len(args) < 1 {
-		fmt.Println("Missing required parameter. Usage: buildpackify finalize <image ID> [application folder]")
+		fmt.Println("Missing required parameter. Usage: devpacker finalize <image ID> [application folder]")
 		os.Exit(1)
 	}
 	if len(args) > 1 {

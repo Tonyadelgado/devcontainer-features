@@ -1,4 +1,4 @@
-module github.com/chuxel/buildpackify-features/buildpackify
+module github.com/chuxel/devpacker-features/devpacker
 
 require (
 	github.com/BurntSushi/toml v0.4.1

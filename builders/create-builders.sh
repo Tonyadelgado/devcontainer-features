@@ -5,9 +5,9 @@ export DOCKER_BUILDKIT=1
 builder_name="${1:-"empty"}"
 publish="${2:-false}"
 
-publisher="$(jq -r '.publisher' ../buildpack-settings.json)"
-featureset="$(jq -r '.featureSet' ../buildpack-settings.json)"
-version="$(jq -r '.version' ../buildpack-settings.json)"
+publisher="$(jq -r '.publisher' ../devpack-settings.json)"
+featureset="$(jq -r '.featureSet' ../devpack-settings.json)"
+version="$(jq -r '.version' ../devpack-settings.json)"
 
 mkdir -p /tmp/builder-tmp
 

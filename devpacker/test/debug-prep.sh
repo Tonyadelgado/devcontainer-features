@@ -14,7 +14,7 @@ cp -f "${script_dir}"/../dist/* "${buildpack_root}"/bin/
 cp -rf "${features_root}"/features "${buildpack_root}"/
 cp -rf "${features_root}"/common "${buildpack_root}"/
 cp -f "${features_root}"/devcontainer-features.json "${buildpack_root}"/
-cp -f "${features_root}"/buildpack-settings.json "${buildpack_root}"/
+cp -f "${features_root}"/devpack-settings.json "${buildpack_root}"/
 
 # Copy test buildpack.toml
 cp -rf ${script_dir}/assets/buildpack.toml "${buildpack_root}"/

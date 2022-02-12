@@ -11,6 +11,7 @@
             "mode": "debug",
             "program": "${workspaceFolder}",
 			"args": [
+				"_internal",
 				"build",
 				"${workspaceFolder}/../test/out/layers",
 				"${workspaceFolder}/../test/out/platform",
@@ -34,6 +35,7 @@
             "mode": "debug",
             "program": "${workspaceFolder}",
 			"args": [
+				"_internal",
 				"detect",
 				"${workspaceFolder}/../test/out/platform",
 				"${workspaceFolder}/../test/out/plan.toml"

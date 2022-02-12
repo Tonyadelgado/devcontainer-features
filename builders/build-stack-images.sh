@@ -4,9 +4,9 @@ export DOCKER_BUILDKIT=1
 cd "$(dirname "${BASH_SOURCE[0]}")"
 publish="${1:-false}"
 
-publisher="$(jq -r '.publisher' ../buildpack-settings.json)"
-featureset_name="$(jq -r '.featureSet' ../buildpack-settings.json)"
-version="$(jq -r '.version' ../buildpack-settings.json)"
+publisher="$(jq -r '.publisher' ../devpack-settings.json)"
+featureset_name="$(jq -r '.featureSet' ../devpack-settings.json)"
+version="$(jq -r '.version' ../devpack-settings.json)"
 uri_prefix="ghcr.io/${publisher}/${featureset_name}"
 
 # Create two stacks - normal, devcontainer

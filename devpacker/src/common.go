@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/tailscale/hujson"
 	"gonum.org/v1/gonum/stat/combin"
@@ -108,7 +107,7 @@ func LoadBuildpackSettings(featuresPath string) BuildpackSettings {
 	if featuresPath == "" {
 		featuresPath = os.Getenv("CNB_BUILDPACK_DIR")
 	}
-	content, err := ioutil.ReadFile(filepath.Join(featuresPath, "buildpack-settings.json"))
+	content, err := ioutil.ReadFile(filepath.Join(featuresPath, "devpack-settings.json"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -285,7 +284,7 @@ func Cp(sourceFilePath string, targetFolderPath string) {
 	}
 	// Sync source and target file mode and ownership
 	targetFile.Chmod(sourceFileInfo.Mode())
-	targetFile.Chown(int(sourceFileInfo.Sys().(*syscall.Stat_t).Uid), int(sourceFileInfo.Sys().(*syscall.Stat_t).Gid))
+	SyncUIDGID(targetFile, sourceFileInfo)
 
 	// Execute copy
 	sourceFile, err := os.Open(sourceFilePath)

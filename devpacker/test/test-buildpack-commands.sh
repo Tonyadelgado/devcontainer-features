@@ -4,7 +4,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 buildpack_root="${script_dir}"/out/buildpack
 mkdir -p "${buildpack_root}"
 
-"${script_dir}"/../scripts/compile.sh
+"${script_dir}"/../scripts/compile.sh true
 "${script_dir}"/debug-prep.sh
 
 cd "${script_dir}/test-project"

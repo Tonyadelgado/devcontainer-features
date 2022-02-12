@@ -4,6 +4,8 @@
 	"version": "v0.1.1",
 	"apiVersion": "0.7",
 	"stacks": [
-		"com.chuxel.stacks.test.bionic"
+		"com.chuxel.stacks.test.bionic",
+		"io.buildpacks.stacks.bionic",
+		"org.cloudfoundry.stacks.cflinuxfs3"
 	]
 }

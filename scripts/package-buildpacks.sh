@@ -5,15 +5,16 @@ packs_dir="${1:-prodpacks}"
 publish="${2:-false}"
 cd "$(dirname "${BASH_SOURCE[0]}")/../${packs_dir}"
 
-publisher="$(jq -r '.publisher' ../buildpack-settings.json)"
-featureset_name="$(jq -r '.featureSet' ../buildpack-settings.json)"
-version="$(jq -r '.version' ../buildpack-settings.json)"
+publisher="$(jq -r '.publisher' ../devpack-settings.json)"
+featureset_name="$(jq -r '.featureSet' ../devpack-settings.json)"
+version="$(jq -r '.version' ../devpack-settings.json)"
 
-for pack_name in "./*"; do
-    echo $pack_name
+echo "${packs_dir}"
+for pack_name in *; do
+    echo "${pack_name}"
     if [  -d "${pack_name}" ] && [ "${pack_name}" != "test" ]; then
         uri="ghcr.io/${publisher}/${featureset_name}/${packs_dir}/${pack_name}:${version}"
-        echo "(*) Packaging ${pack_name} modepack as ${uri}..."
+        echo "(*) Packaging ${packs_dir}/${pack_name} as ${uri}..."
         pack buildpack package "${uri}" --pull-policy if-not-present -p ${pack_name}
         if [ "${publish}" = "true" ]; then
             # Expects that you are already logged in appropriatley

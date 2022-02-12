@@ -4,8 +4,8 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 buildpack_root="${script_dir}"/out/buildpack
 mkdir -p "${buildpack_root}"
 
-"${script_dir}"/../scripts/compile.sh
-"${script_dir}"/../buildpackify "${script_dir}"/../.. "${buildpack_root}"
+"${script_dir}"/../scripts/compile.sh true
+"${script_dir}"/../devpacker generate "${script_dir}"/../.. "${buildpack_root}"
 
 cd "${script_dir}/test-project"
 pack build -v test_image \

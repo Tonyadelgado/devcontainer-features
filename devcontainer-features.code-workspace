@@ -1,11 +1,11 @@
 {
 	"folders": [
 		{ 
-			"name": "buildpackify (go module)",
-			"path": "buildpack/src"
+			"name": "devpacker (go module)",
+			"path": "devpacker/src"
 		},
 		{
-			"path": "buildpack"
+			"path": "devpacker"
 		},
 		{
 			"path": "builders"
@@ -17,6 +17,12 @@
 			"path": "common"
 		},
 		{
+			"path": "prodpacks"
+		},
+		{
+			"path": "modepacks"
+		},
+		{
 			"name": "repository root",
 			"path": "."
 		}
@@ -25,15 +31,17 @@
 		"cSpell.words": [
 			"buidpack",
 			"buildpack",
-			"buildpackify",
 			"Buldpack",
 			"dcnb",
+			"devpacker",
 			"godotenv",
 			"gonum",
 			"hujson",
-			"libbuildpackify",
 			"libcnb",
-			"packcli"
+			"libdevpacker",
+			"modepacks",
+			"packcli",
+			"prodpacks"
 		]
 	}
 }

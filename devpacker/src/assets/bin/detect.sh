@@ -15,9 +15,9 @@ case $arch in
         ;;
 esac
 
-if [ -e "${script_dir}/buildpackify-linux-${arch}" ]; then
-    "${script_dir}/buildpackify-linux-${arch}" build "$@"
+if [ -e "${script_dir}/devpacker-linux-${arch}" ]; then
+    "${script_dir}/devpacker-linux-${arch}" _internal detect "$@"
     exit $?
 fi
 
-echo "Unable to find buildpackify binary for ${arch}!"
+echo "Unable to find devpacker binary for ${arch}!"

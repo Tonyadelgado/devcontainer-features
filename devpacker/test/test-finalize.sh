@@ -1,5 +1,7 @@
 #!/bin/bash
-script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+set -e
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 osname="$(uname)"
 case $osname in
     Darwin | darwin)
@@ -27,16 +29,7 @@ case $arch in
         ;;
 esac
 
-binary_name="buildpackify-${osname}-${arch}"
+binary_name="devpacker-${osname}-${arch}"
 
-if [ -e "${script_dir}/${binary_name}" ]; then
-    "${script_dir}/${binary_name}" generate "$@"
-    exit $?
-fi
-
-if [ -e "${script_dir}/dist/${binary_name}" ]; then
-    "${script_dir}/dist/${binary_name}" generate "$@"
-    exit $?
-fi
-
-echo "Unable to find buildpackify binary for ${osname} ${arch}!"
+"${script_dir}"/test-generate.sh
+"${script_dir}"/../devpacker finalize --mode "devcontainer" finalize "test_image" "${script_dir}/test-project"
