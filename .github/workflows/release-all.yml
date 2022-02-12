@@ -1,0 +1,62 @@
+name: 'Release All'
+on:
+  workflow_dispatch:
+  push:
+    tags:
+    - 'v*'
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release-features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.17.6'
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+ 
+      - name: Setup pack and devcontainer CLI
+        id: setup_pack_devcontainer_clis
+        run: |
+          export PATH="${PATH}:$HOME/.local"
+          export _BUILD_ARG_PACKCLI_TARGETPATH="$HOME/.local"
+          bash features/packcli/bin/acquire
+          npm install -g @vscode/dev-container-cli
+ 
+      - name: Package and publish devpack images
+        run: |
+          export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          bash scripts/build-and-publish-all.sh GHCR_TOKEN "${{ github.actor }}"
+          mv ./devpacker/out/* ./
+
+      - name: Package dev container features
+        uses: microsoft/publish-dev-container-features-action@main
+        with:
+          path-to-features: '.'
+
+      - name: Create checksums for files
+        run: |
+          sha256sum \
+            ./devcontainer-features.tgz \
+            ./devpacker-windows.zip \
+            ./devpacker-darwin.tgz \
+            ./devpacker-linux.tgz \
+            > ./SHASUMS256.txt
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ./devcontainer-features.tgz
+            ./devpacker-windows.zip
+            ./devpacker-darwin.tgz
+            ./devpacker-linux.tgz
+            ./SHASUMS256.txt
+
