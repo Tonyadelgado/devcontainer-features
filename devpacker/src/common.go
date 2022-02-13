@@ -19,11 +19,14 @@ const MetadataIdPrefix = "com.microsoft.devcontainer"
 const FeaturesetMetadataId = MetadataIdPrefix + ".featureset"
 const FeaturesMetadataId = MetadataIdPrefix + ".features"
 const FeatureLayerMetadataId = MetadataIdPrefix + ".feature"
+const BuildModeMetadataId = MetadataIdPrefix + ".buildmode"
+const OptionMetadataKeyPrefix = "option_"
 const BuildpackDirEnvVar = "CNB_BUILDPACK_DIR"
 const ContainerImageBuildModeEnvVarName = "BP_DCNB_BUILD_MODE"
+const OptionSelectionEnvVarPrefix = "_BUILD_ARG_"
+const ProjectTomlOptionSelectionEnvVarPrefix = "BP_CONTAINER_FEATURE_"
 const DefaultContainerImageBuildMode = "production"
 const ContainerImageBuildMarkerPath = "/usr/local/etc/dev-container-features/dcnb-build-mode"
-const BuildModeMetadataId = MetadataIdPrefix + ".buildmode"
 const DevpackSettingsFilename = "devpack-settings.json"
 
 var cachedContainerImageBuildMode = ""
@@ -220,20 +223,37 @@ func GetContainerImageBuildMode() string {
 	return cachedContainerImageBuildMode
 }
 
-func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]string) []string {
+func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]string, additionalVariables map[string]string) []string {
 	// Create environment that includes feature build args
-	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
-	optionEnvVarPrefix := "_BUILD_ARG_" + idSafe
 	env := append(os.Environ(),
-		optionEnvVarPrefix+"=true",
-		optionEnvVarPrefix+"_BUILD_MODE="+GetContainerImageBuildMode(),
-		optionEnvVarPrefix+"_PROFILE_D="+filepath.Join(optionSelections["targetPath"], "profile.d"))
-	for option, selection := range optionSelections {
+		GetOptionEnvVarName(OptionSelectionEnvVarPrefix, feature.Id, "")+"=true",
+		GetOptionEnvVarName(OptionSelectionEnvVarPrefix, feature.Id, "BUILD_MODE")+"="+GetContainerImageBuildMode())
+	for optionId, selection := range optionSelections {
 		if selection != "" {
-			env = append(env, optionEnvVarPrefix+"_"+strings.ToUpper(option)+"="+selection)
+			env = append(env, GetOptionEnvVarName(OptionSelectionEnvVarPrefix, feature.Id, optionId)+"="+selection)
 		}
 	}
+	for varName, varValue := range additionalVariables {
+		env = append(env, GetOptionEnvVarName(OptionSelectionEnvVarPrefix, feature.Id, varName)+"="+varValue)
+	}
+	log.Println(env)
 	return env
+}
+
+func GetOptionEnvVarName(prefix string, featureId string, optionId string) string {
+	if prefix == "" {
+		prefix = OptionSelectionEnvVarPrefix
+	}
+	featureIdSafe := strings.ReplaceAll(strings.ToUpper(featureId), "-", "_")
+	if optionId != "" {
+		optionIdSafe := strings.ReplaceAll(strings.ToUpper(optionId), "-", "_")
+		return prefix + featureIdSafe + "_" + strings.ToUpper(strings.ReplaceAll(optionIdSafe, "-", "_"))
+	}
+	return prefix + featureId
+}
+
+func GetOptionMetadataKey(optionId string) string {
+	return OptionMetadataKeyPrefix + strings.ToLower(strings.ReplaceAll(optionId, "-", "_"))
 }
 
 // e.g. chuxel/devcontainer/features/packcli

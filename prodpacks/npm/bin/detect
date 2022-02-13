@@ -49,7 +49,7 @@ cat >> "${build_plan}" << EOF
   [requires.metadata]
     build = true
     launch = true
-    option-version="${node_version}"
+    option_version="${node_version}"
 EOF
 
 # Still want to return false since we added a requirement

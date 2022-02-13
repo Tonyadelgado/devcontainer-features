@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -100,7 +101,9 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 
 	// Get build environment based on set options
 	fc.OptionSelections["targetPath"] = layer.Path
-	env := GetBuildEnvironment(fc.Feature, fc.OptionSelections)
+	env := GetBuildEnvironment(fc.Feature, fc.OptionSelections, map[string]string{
+		"PROFILE_D": filepath.Join(layer.Path, "profile.d"),
+	})
 
 	// Execute the script
 	log.Printf("- Executing %s\n", acquireScriptPath)
@@ -169,13 +172,13 @@ func getLayerContributorForFeature(feature FeatureConfig, devpackSettings Devpac
 				}
 			}
 			layerContributor.LayerTypes = layerTypes
-			// See if feature options were passed using option-<optionname> from
+			// See if feature options were passed using option_<optionname> from
 			// either the "detect" command or from a dependant buildpack
 			optionSelections := make(map[string]string)
-			for optionName := range feature.Options {
-				selection, containsKey := entry.Metadata["option-"+strings.ToLower(optionName)]
+			for optionId := range feature.Options {
+				selection, containsKey := entry.Metadata[GetOptionMetadataKey(optionId)]
 				if containsKey {
-					optionSelections[optionName] = fmt.Sprint(selection)
+					optionSelections[optionId] = fmt.Sprint(selection)
 				}
 			}
 			layerContributor.OptionSelections = optionSelections

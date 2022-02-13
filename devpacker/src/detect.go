@@ -85,8 +85,8 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings DevpackSettin
 	// Add any option selections from BP_CONTAINER_FEATURE_<feature.Id>_<option> env vars and devcontainer.json (in devcontainer mode)
 	detected, optionSelections := detectOptionSelections(feature, buildpackSettings, devContainerJson)
 	if detected {
-		for option, selection := range optionSelections {
-			require.Metadata["option-"+strings.ToLower(option)] = selection
+		for optionId, selection := range optionSelections {
+			require.Metadata[GetOptionMetadataKey(optionId)] = selection
 		}
 		return true, provide, require, nil
 	}
@@ -100,8 +100,9 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings DevpackSettin
 
 	// Execute the script - set path to where a resulting devcontainer-features.env should be placed as env var
 	log.Printf("- Executing %s\n", detectScriptPath)
-	env := GetBuildEnvironment(feature, optionSelections)
-	env = append(env, "DEVCONTAINER_FEATURES_ENV_PATH="+DevContainerFeaturesEnvPath)
+	env := GetBuildEnvironment(feature, optionSelections, map[string]string{
+		"SELECTION_ENV_FILE_PATH": DevContainerFeaturesEnvPath,
+	})
 	logWriter := log.Writer()
 	detectCommand := exec.Command(detectScriptPath)
 	detectCommand.Env = env
@@ -118,9 +119,9 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings DevpackSettin
 			if err := godotenv.Load(DevContainerFeaturesEnvPath); err != nil {
 				log.Fatal(err)
 			}
-			_, optionSelections = getOptionSelectionsFromEnv(feature, optionSelections, "_BUILD_ARG_")
+			_, optionSelections = mergeOptionSelectionsFromEnv(feature, optionSelections, OptionSelectionEnvVarPrefix)
 			for option, selection := range optionSelections {
-				require.Metadata["option-"+strings.ToLower(option)] = selection
+				require.Metadata[GetOptionMetadataKey(option)] = selection
 			}
 		}
 		return true, provide, require, nil
@@ -158,22 +159,20 @@ func detectOptionSelections(feature FeatureConfig, buildpackSettings DevpackSett
 	}
 
 	// Look for BP_CONTAINER_FEATURE_<feature.Id>_<option> environment variables, convert
-	detectedEnv, optionselections := getOptionSelectionsFromEnv(feature, optionSelections, "BP_CONTAINER_FEATURE_")
+	detectedEnv, optionselections := mergeOptionSelectionsFromEnv(feature, optionSelections, ProjectTomlOptionSelectionEnvVarPrefix)
 	return (detectedDevContainerJson || detectedEnv), optionselections
 }
 
-func getOptionSelectionsFromEnv(feature FeatureConfig, optionSelections map[string]string, prefix string) (bool, map[string]string) {
+func mergeOptionSelectionsFromEnv(feature FeatureConfig, optionSelections map[string]string, prefix string) (bool, map[string]string) {
 	detected := false
-	idSafe := strings.ReplaceAll(strings.ToUpper(feature.Id), "-", "_")
-	enabledEnvVarVal := os.Getenv(prefix + idSafe)
+	enabledEnvVarVal := os.Getenv(GetOptionEnvVarName(prefix, feature.Id, ""))
 	if enabledEnvVarVal != "" && enabledEnvVarVal != "false" {
 		detected = true
 	}
-	for optionName := range feature.Options {
-		optionNameSafe := strings.ReplaceAll(strings.ToUpper(optionName), "-", "_")
-		optionValue := os.Getenv(prefix + idSafe + "_" + optionNameSafe)
+	for optionId := range feature.Options {
+		optionValue := os.Getenv(GetOptionEnvVarName(prefix, feature.Id, optionId))
 		if optionValue != "" {
-			optionSelections[optionName] = optionValue
+			optionSelections[optionId] = optionValue
 		}
 	}
 	return detected, optionSelections
