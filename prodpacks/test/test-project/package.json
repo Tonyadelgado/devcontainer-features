@@ -1,6 +1,6 @@
 {
     "engines": {
-        "node": "16.14.0"
+        "node": "^16.14.0"
     },
 	"scripts": {
 		"start": "echo ITS ALIVE!!"
