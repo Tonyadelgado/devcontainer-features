@@ -46,7 +46,7 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 
 	// Process each feature if it is in the buildpack plan in the order they appear in features.json
 	for _, feature := range featuresJson.Features {
-		shouldAddLayer, layerContributor := getLayerContributorForFeature(feature, devpackSettings, context.Plan)
+		shouldAddLayer, layerContributor := createLayerContributorForFeature(feature, devpackSettings, context.Plan)
 		if shouldAddLayer {
 			layerContributor.Context = context
 			result.Layers = append(result.Layers, layerContributor)
@@ -69,10 +69,29 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	log.Printf("Number of layer contributors: %d", len(result.Layers))
 	log.Printf("Unmet entries: %d", len(result.Unmet))
 
+	buildMode := GetContainerImageBuildMode()
+
 	result.Labels = append(result.Labels, libcnb.Label{
 		Key:   BuildModeMetadataId,
-		Value: GetContainerImageBuildMode(),
+		Value: buildMode,
 	})
+
+	// If we're in devcontainer mode, delete the app folder contents so they are omitted in the output.
+	// This would not affect detection logic because any detect steps will have already run by this point.
+	if buildMode == "devcontainer" && os.Getenv("BP_DCNB_OMIT_APP_DIR") != "false" {
+		log.Println("(*) Removing contents at", context.Application.Path, "so they are not in the resulting output.")
+		entries, err := os.ReadDir(context.Application.Path)
+		if err != nil {
+			log.Fatal("Failed to get directory contents in", context.Application.Path, "-", err)
+		}
+		for _, entry := range entries {
+			if err := os.RemoveAll(filepath.Join(context.Application.Path, entry.Name())); err != nil {
+				log.Fatal("Failed to remove", entry.Name(), "-", err)
+			}
+		}
+	} else {
+		log.Println("(*) Leaving application folder contents in place.")
+	}
 
 	return result, nil
 }
@@ -149,7 +168,7 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 }
 
 // See if the build plan includes an entry for this feature. If so, return a LayerContributor for it
-func getLayerContributorForFeature(feature FeatureConfig, devpackSettings DevpackSettings, plan libcnb.BuildpackPlan) (bool, FeatureLayerContributor) {
+func createLayerContributorForFeature(feature FeatureConfig, devpackSettings DevpackSettings, plan libcnb.BuildpackPlan) (bool, FeatureLayerContributor) {
 	layerContributor := FeatureLayerContributor{Feature: feature, DevpackSettings: devpackSettings}
 	// See if detect said should provide this feature
 	for _, entry := range plan.Entries {

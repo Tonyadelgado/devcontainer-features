@@ -31,6 +31,9 @@ func main() {
 	case "finalize":
 		// Used to generate apply final build with the dev container CLI, output a devcontainer.json
 		executeFinalizeCommand(nonFlagArgs[1:], buildMode)
+	case "build":
+		// Runs pack build and does any needed pre and post processing
+		executePackBuildCommand(nonFlagArgs[1:], buildMode)
 	case "_internal":
 		// If doing a build or detect command, pass of processing to FeatureBuilder, FeatureDetector respectively
 		libcnb.Main(FeatureDetector{}, FeatureBuilder{}, libcnb.WithArguments(nonFlagArgs[1:]))
@@ -60,6 +63,14 @@ func executeFinalizeCommand(args []string, buildMode string) {
 	if len(args) > 1 {
 		applicationFolder = args[1]
 	}
+	FinalizeImage(args[0], buildMode, applicationFolder)
+}
+
+func executePackBuildCommand(args []string, buildMode string) {
+	if len(args) < 1 {
+		fmt.Println("Missing required parameter. Usage: devpacker build <image ID>")
+		os.Exit(1)
+	}
 	os.Setenv(ContainerImageBuildModeEnvVarName, buildMode)
-	FinalizeImage(args[0], applicationFolder)
+	PackBuild(args[0], buildMode, args[1:])
 }

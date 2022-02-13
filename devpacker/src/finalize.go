@@ -38,12 +38,12 @@ var ensureLauncherEnvScript []byte
 //go:embed assets/ensure-launcher-env.Dockerfile
 var envRestoreDockerfile []byte
 
-func FinalizeImage(imageToFinalize string, applicationFolder string) {
+func FinalizeImage(imageToFinalize string, buildMode string, applicationFolder string) {
 	log.Println("Image to finalize:", imageToFinalize)
 	log.Println("Application folder:", applicationFolder)
 
 	// Get needed metadata from image label
-	labelMetadata := getImageLabelMetadata(imageToFinalize)
+	labelMetadata := getImageLabelMetadata(imageToFinalize, buildMode)
 	log.Println("Image build mode:", labelMetadata.BuildMode)
 
 	// Get devcontainer.json as a map so we don't change any fields unexpectedly
@@ -187,7 +187,7 @@ func toJsonRawMessage(value interface{}) json.RawMessage {
 }
 
 // Inspect the specified image to get any feature config set on a label
-func getImageLabelMetadata(imageToFinalize string) LabelMetadata {
+func getImageLabelMetadata(imageToFinalize string, buildModeOverride string) LabelMetadata {
 	var labelMetadata LabelMetadata
 	labelJsonBytes := dockerCli("", true, "image", "inspect", imageToFinalize, "-f", labelMetadataTemplate)
 	if len(labelJsonBytes) <= 0 && string(labelJsonBytes) != "" {
@@ -197,10 +197,10 @@ func getImageLabelMetadata(imageToFinalize string) LabelMetadata {
 			log.Println("Unable to find feature metadata in image. Assuming no post processing is required.")
 		}
 	}
-	buildModeOverride := os.Getenv(ContainerImageBuildModeEnvVarName)
 	if buildModeOverride != "" {
 		labelMetadata.BuildMode = buildModeOverride
 	} else if labelMetadata.BuildMode == "" {
+		// If no override, and we didn't get a value off of the image, then use the default
 		labelMetadata.BuildMode = DefaultContainerImageBuildMode
 	}
 	return labelMetadata
