@@ -19,9 +19,12 @@ const MetadataIdPrefix = "com.microsoft.devcontainer"
 const FeaturesetMetadataId = MetadataIdPrefix + ".featureset"
 const FeaturesMetadataId = MetadataIdPrefix + ".features"
 const FeatureLayerMetadataId = MetadataIdPrefix + ".feature"
+const BuildpackDirEnvVar = "CNB_BUILDPACK_DIR"
 const ContainerImageBuildModeEnvVarName = "BP_DCNB_BUILD_MODE"
 const DefaultContainerImageBuildMode = "production"
 const ContainerImageBuildMarkerPath = "/usr/local/etc/dev-container-features/dcnb-build-mode"
+const BuildModeMetadataId = MetadataIdPrefix + ".buildmode"
+const DevpackSettingsFilename = "devpack-settings.json"
 
 var cachedContainerImageBuildMode = ""
 
@@ -66,7 +69,7 @@ type FeaturesJson struct {
 }
 
 // Required configuration for processing
-type BuildpackSettings struct {
+type DevpackSettings struct {
 	Publisher  string   // aka GitHub Org
 	FeatureSet string   // aka GitHub Repository
 	Version    string   // Used for version pinning
@@ -88,7 +91,7 @@ type LayerFeatureMetadata struct {
 func LoadFeaturesJson(featuresPath string) FeaturesJson {
 	// Load devcontainer-features.json or features.json
 	if featuresPath == "" {
-		featuresPath = os.Getenv("CNB_BUILDPACK_DIR")
+		featuresPath = os.Getenv(BuildpackDirEnvVar)
 	}
 	content, err := ioutil.ReadFile(filepath.Join(featuresPath, "devcontainer-features.json"))
 	if err != nil {
@@ -103,15 +106,15 @@ func LoadFeaturesJson(featuresPath string) FeaturesJson {
 	return featuresJson
 }
 
-func LoadBuildpackSettings(featuresPath string) BuildpackSettings {
+func LoadDevpackSettings(featuresPath string) DevpackSettings {
 	if featuresPath == "" {
-		featuresPath = os.Getenv("CNB_BUILDPACK_DIR")
+		featuresPath = os.Getenv(BuildpackDirEnvVar)
 	}
-	content, err := ioutil.ReadFile(filepath.Join(featuresPath, "devpack-settings.json"))
+	content, err := ioutil.ReadFile(filepath.Join(featuresPath, DevpackSettingsFilename))
 	if err != nil {
 		log.Fatal(err)
 	}
-	var jsonContents BuildpackSettings
+	var jsonContents DevpackSettings
 	err = json.Unmarshal(content, &jsonContents)
 	if err != nil {
 		log.Fatal(err)
@@ -234,11 +237,11 @@ func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]stri
 }
 
 // e.g. chuxel/devcontainer/features/packcli
-func GetFullFeatureId(feature FeatureConfig, buildpackSettings BuildpackSettings, separator string) string {
+func GetFullFeatureId(feature FeatureConfig, devpackSettings DevpackSettings, separator string) string {
 	if separator == "" {
 		separator = "/"
 	}
-	return buildpackSettings.Publisher + separator + buildpackSettings.FeatureSet + separator + feature.Id
+	return devpackSettings.Publisher + separator + devpackSettings.FeatureSet + separator + feature.Id
 }
 
 func CpR(sourcePath string, targetFolderPath string) {

@@ -20,7 +20,7 @@ type FeatureDetector struct {
 
 // Implementation of libcnb.Detector.Detect
 func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error) {
-	log.Println("Buildpack path:", context.Buildpack.Path)
+	log.Println("Devpack path:", context.Buildpack.Path)
 	log.Println("Application path:", context.Application.Path)
 	log.Println("Env:", os.Environ())
 
@@ -29,9 +29,9 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 	// TODO: Enable detect script to return options that should then be passed on to the builder via metadata, then drop devcontainer.json parsing in the build stage
 
 	// Load features.json, buildpack settings
-	buildpackSettings := LoadBuildpackSettings(context.Buildpack.Path)
+	devpackSettings := LoadDevpackSettings(context.Buildpack.Path)
 	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
-	log.Println("Number of features in Buildpack:", len(featuresJson.Features))
+	log.Println("Number of features in Devpack:", len(featuresJson.Features))
 
 	// Load devcontainer.json if in devcontainer build mode
 	var devContainerJson DevContainerJson
@@ -43,7 +43,7 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 	var plan libcnb.BuildPlan
 	onlyProvided := []libcnb.BuildPlanProvide{}
 	for _, feature := range featuresJson.Features {
-		detected, provide, require, err := detectFeature(context, buildpackSettings, feature, devContainerJson)
+		detected, provide, require, err := detectFeature(context, devpackSettings, feature, devContainerJson)
 		if err != nil {
 			return result, err
 		}
@@ -76,7 +76,7 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 	return result, nil
 }
 
-func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSettings, feature FeatureConfig, devContainerJson DevContainerJson) (bool, libcnb.BuildPlanProvide, libcnb.BuildPlanRequire, error) {
+func detectFeature(context libcnb.DetectContext, buildpackSettings DevpackSettings, feature FeatureConfig, devContainerJson DevContainerJson) (bool, libcnb.BuildPlanProvide, libcnb.BuildPlanRequire, error) {
 	// e.g. chuxel/devcontainer/features/packcli
 	fullFeatureId := GetFullFeatureId(feature, buildpackSettings, "/")
 	provide := libcnb.BuildPlanProvide{Name: fullFeatureId}
@@ -133,7 +133,7 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings BuildpackSett
 	}
 }
 
-func detectOptionSelections(feature FeatureConfig, buildpackSettings BuildpackSettings, devContainerJson DevContainerJson) (bool, map[string]string) {
+func detectOptionSelections(feature FeatureConfig, buildpackSettings DevpackSettings, devContainerJson DevContainerJson) (bool, map[string]string) {
 	optionSelections := make(map[string]string)
 	detectedDevContainerJson := false
 	// If in dev container mode, parse devcontainer.json features (if any)

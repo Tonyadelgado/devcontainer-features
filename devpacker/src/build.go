@@ -22,16 +22,16 @@ type FeatureLayerContributor struct {
 	// Name() string
 
 	// FullFeatureId() string
-	Feature           FeatureConfig
-	BuildpackSettings BuildpackSettings
-	LayerTypes        libcnb.LayerTypes
-	Context           libcnb.BuildContext
-	OptionSelections  map[string]string
+	Feature          FeatureConfig
+	DevpackSettings  DevpackSettings
+	LayerTypes       libcnb.LayerTypes
+	Context          libcnb.BuildContext
+	OptionSelections map[string]string
 }
 
 // Implementation of libcnb.Builder.Build
 func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
-	log.Println("Buildpack path:", context.Buildpack.Path)
+	log.Println("Devpack path:", context.Buildpack.Path)
 	log.Println("Application path:", context.Application.Path)
 	log.Println("Number of plan entries:", len(context.Plan.Entries))
 	log.Println("Env:", os.Environ())
@@ -39,13 +39,13 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	var result libcnb.BuildResult
 
 	// Load devcontainer.json, features.json, buildpack settings
-	buildpackSettings := LoadBuildpackSettings(context.Buildpack.Path)
+	devpackSettings := LoadDevpackSettings(context.Buildpack.Path)
 	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
-	log.Println("Number of features in Buildpack:", len(featuresJson.Features))
+	log.Println("Number of features in Devpack:", len(featuresJson.Features))
 
 	// Process each feature if it is in the buildpack plan in the order they appear in features.json
 	for _, feature := range featuresJson.Features {
-		shouldAddLayer, layerContributor := getLayerContributorForFeature(feature, buildpackSettings, context.Plan)
+		shouldAddLayer, layerContributor := getLayerContributorForFeature(feature, devpackSettings, context.Plan)
 		if shouldAddLayer {
 			layerContributor.Context = context
 			result.Layers = append(result.Layers, layerContributor)
@@ -68,12 +68,17 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	log.Printf("Number of layer contributors: %d", len(result.Layers))
 	log.Printf("Unmet entries: %d", len(result.Unmet))
 
+	result.Labels = append(result.Labels, libcnb.Label{
+		Key:   BuildModeMetadataId,
+		Value: GetContainerImageBuildMode(),
+	})
+
 	return result, nil
 }
 
 func (fc FeatureLayerContributor) FullFeatureId() string {
 	// e.g. chuxel-devcontainer-features-packcli
-	return GetFullFeatureId(fc.Feature, fc.BuildpackSettings, "/")
+	return GetFullFeatureId(fc.Feature, fc.DevpackSettings, "/")
 }
 
 // Implementation of libcnb.LayerContributor.Name
@@ -119,7 +124,7 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	layer.Metadata = make(map[string]interface{})
 	layer.Metadata[FeatureLayerMetadataId] = LayerFeatureMetadata{
 		Id:               fc.FullFeatureId(),
-		Version:          fc.BuildpackSettings.Version,
+		Version:          fc.DevpackSettings.Version,
 		OptionSelections: fc.OptionSelections,
 	}
 
@@ -141,8 +146,8 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 }
 
 // See if the build plan includes an entry for this feature. If so, return a LayerContributor for it
-func getLayerContributorForFeature(feature FeatureConfig, buildpackSettings BuildpackSettings, plan libcnb.BuildpackPlan) (bool, FeatureLayerContributor) {
-	layerContributor := FeatureLayerContributor{Feature: feature, BuildpackSettings: buildpackSettings}
+func getLayerContributorForFeature(feature FeatureConfig, devpackSettings DevpackSettings, plan libcnb.BuildpackPlan) (bool, FeatureLayerContributor) {
+	layerContributor := FeatureLayerContributor{Feature: feature, DevpackSettings: devpackSettings}
 	// See if detect said should provide this feature
 	for _, entry := range plan.Entries {
 		// See if this entry is for this feature

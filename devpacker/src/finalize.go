@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+const labelMetadataTemplate = "{\"lifecycle\": {{ index .Config.Labels \"io.buildpacks.lifecycle.metadata\" }} , \"buildmode\": \"{{ index .Config.Labels \"" + BuildModeMetadataId + "\" }}\" }"
+
 type LabelBuldpack struct {
 	Layers map[string]LabelBuldpackLayer
 }
@@ -25,6 +27,11 @@ type LifecycleLabelMetadata struct {
 	Buildpacks []LabelBuldpack
 }
 
+type LabelMetadata struct {
+	BuildMode string `json:"buildmode"`
+	Lifecycle LifecycleLabelMetadata
+}
+
 //go:embed assets/ensure-launcher-env.sh
 var ensureLauncherEnvScript []byte
 
@@ -32,17 +39,19 @@ var ensureLauncherEnvScript []byte
 var envRestoreDockerfile []byte
 
 func FinalizeImage(imageToFinalize string, applicationFolder string) {
-	buildMode := GetContainerImageBuildMode()
 	log.Println("Image to finalize:", imageToFinalize)
-	log.Println("Image build mode:", buildMode)
 	log.Println("Application folder:", applicationFolder)
 
+	// Get needed metadata from image label
+	labelMetadata := getImageLabelMetadata(imageToFinalize)
+	log.Println("Image build mode:", labelMetadata.BuildMode)
+
 	// Get devcontainer.json as a map so we don't change any fields unexpectedly
-	var devContainerJsonMap map[string]json.RawMessage
-	var devContainerJsonFeatureMap map[string]interface{}
+	devContainerJsonMap := make(map[string]json.RawMessage)
+	devContainerJsonFeatureMap := make(map[string]interface{})
 	var devContainerJsonPath string
 	// Only load the existing devcontainer.json file if we're in the devcontainer context
-	if buildMode == "devcontainer" {
+	if labelMetadata.BuildMode == "devcontainer" {
 		log.Println("Loading devcontainer.json if present.")
 		devContainerJsonMap, devContainerJsonPath = LoadDevContainerJsonAsMap(applicationFolder)
 		// Un-marshall devcontainer.json features into a map
@@ -50,13 +59,13 @@ func FinalizeImage(imageToFinalize string, applicationFolder string) {
 			log.Fatal(err)
 		}
 	} else {
-		log.Println("Skipping devcontainer.json load since build mode is", buildMode)
+		log.Println("Skipping devcontainer.json load since build mode is", labelMetadata.BuildMode)
 		devContainerJsonPath = FindDevContainerJson(applicationFolder)
 	}
 
 	// Inspect the specified image to and add any feature metadata into our features map
 	log.Println("Inspecting image lifecycle metadata", imageToFinalize, "for feature metadata.")
-	devContainerJsonFeatureMap = convertLifecycleMetadataToFeatureOptionSelections(imageToFinalize, devContainerJsonFeatureMap)
+	devContainerJsonFeatureMap = convertLifecycleMetadataToFeatureOptionSelections(labelMetadata, devContainerJsonFeatureMap)
 
 	// Convert map back into a RawMessage for the map, and add it back into the devcontainer json object
 	featureRawMessage, err := json.Marshal(devContainerJsonFeatureMap)
@@ -97,40 +106,6 @@ func FinalizeImage(imageToFinalize string, applicationFolder string) {
 
 }
 
-func devContainerImageBuild(imageToFinalize string, tempDevContainerJsonPath string, originalDevContainerJsonPath string) {
-	workingDir := filepath.Dir(tempDevContainerJsonPath)
-
-	// Rename files so temp devcontainer.json is used
-	if err := os.Rename(originalDevContainerJsonPath, originalDevContainerJsonPath+".orig"); err != nil {
-		log.Fatal(err)
-	}
-	if err := os.Rename(tempDevContainerJsonPath, originalDevContainerJsonPath); err != nil {
-		log.Fatal(err)
-	}
-
-	// Invoke dev container CLI
-	dockerCommand := exec.Command("devcontainer", "build", "--image-name", imageToFinalize)
-	dockerCommand.Env = os.Environ()
-	writer := log.Writer()
-	dockerCommand.Stdout = writer
-	dockerCommand.Stderr = writer
-	dockerCommand.Dir = workingDir
-	commandErr := dockerCommand.Run()
-
-	// Rename files back
-	if err := os.Rename(originalDevContainerJsonPath, tempDevContainerJsonPath); err != nil {
-		log.Fatal(err)
-	}
-	if err := os.Rename(originalDevContainerJsonPath+".orig", originalDevContainerJsonPath); err != nil {
-		log.Fatal(err)
-	}
-
-	// Report command error if there was one
-	if commandErr != nil || dockerCommand.ProcessState.ExitCode() != 0 {
-		log.Fatal("Failed to build using devcontainer CLI. " + commandErr.Error())
-	}
-}
-
 func updateImageToEnsureLauncherEnv(imageToFinalize string) {
 	var err error
 	tempDir := filepath.Join(os.TempDir(), strconv.FormatInt(rand.Int63(), 36))
@@ -151,19 +126,9 @@ func updateImageToEnsureLauncherEnv(imageToFinalize string) {
 	}
 }
 
-func convertLifecycleMetadataToFeatureOptionSelections(imageToFinalize string, devContainerJsonFeatureMap map[string]interface{}) map[string]interface{} {
-	// Inspect the specified image to get any feature config set on a label
-	labelJsonBytes := dockerCli("", true, "image", "inspect", imageToFinalize, "-f", "{{ index .Config.Labels \"io.buildpacks.lifecycle.metadata\" }}")
-	if len(labelJsonBytes) <= 0 {
-		log.Println("No features metadata in image, so no post processing required.")
-		return devContainerJsonFeatureMap
-	}
-	var lifecycleLabelData LifecycleLabelMetadata
-	if err := json.Unmarshal(labelJsonBytes, &lifecycleLabelData); err != nil {
-		log.Fatal(err)
-	}
+func convertLifecycleMetadataToFeatureOptionSelections(labelMetadata LabelMetadata, devContainerJsonFeatureMap map[string]interface{}) map[string]interface{} {
 	// For each buildpack
-	for _, buildpackMetadata := range lifecycleLabelData.Buildpacks {
+	for _, buildpackMetadata := range labelMetadata.Lifecycle.Buildpacks {
 		// And each layer in each buildpack
 		for _, layerMetadata := range buildpackMetadata.Layers {
 			// See if there is any feature metadata
@@ -219,4 +184,58 @@ func toJsonRawMessage(value interface{}) json.RawMessage {
 		log.Fatal(err)
 	}
 	return bytes
+}
+
+// Inspect the specified image to get any feature config set on a label
+func getImageLabelMetadata(imageToFinalize string) LabelMetadata {
+	var labelMetadata LabelMetadata
+	labelJsonBytes := dockerCli("", true, "image", "inspect", imageToFinalize, "-f", labelMetadataTemplate)
+	if len(labelJsonBytes) <= 0 && string(labelJsonBytes) != "" {
+		log.Println("No features metadata in image, so no post processing required.")
+	} else {
+		if err := json.Unmarshal(labelJsonBytes, &labelMetadata); err != nil {
+			log.Println("Unable to find feature metadata in image. Assuming no post processing is required.")
+		}
+	}
+	buildModeOverride := os.Getenv(ContainerImageBuildModeEnvVarName)
+	if buildModeOverride != "" {
+		labelMetadata.BuildMode = buildModeOverride
+	} else if labelMetadata.BuildMode == "" {
+		labelMetadata.BuildMode = DefaultContainerImageBuildMode
+	}
+	return labelMetadata
+}
+
+func devContainerImageBuild(imageToFinalize string, tempDevContainerJsonPath string, originalDevContainerJsonPath string) {
+	workingDir := filepath.Dir(tempDevContainerJsonPath)
+
+	// Rename files so temp devcontainer.json is used
+	if err := os.Rename(originalDevContainerJsonPath, originalDevContainerJsonPath+".orig"); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.Rename(tempDevContainerJsonPath, originalDevContainerJsonPath); err != nil {
+		log.Fatal(err)
+	}
+
+	// Invoke dev container CLI
+	dockerCommand := exec.Command("devcontainer", "build", "--image-name", imageToFinalize)
+	dockerCommand.Env = os.Environ()
+	writer := log.Writer()
+	dockerCommand.Stdout = writer
+	dockerCommand.Stderr = writer
+	dockerCommand.Dir = workingDir
+	commandErr := dockerCommand.Run()
+
+	// Rename files back
+	if err := os.Rename(originalDevContainerJsonPath, tempDevContainerJsonPath); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.Rename(originalDevContainerJsonPath+".orig", originalDevContainerJsonPath); err != nil {
+		log.Fatal(err)
+	}
+
+	// Report command error if there was one
+	if commandErr != nil || dockerCommand.ProcessState.ExitCode() != 0 {
+		log.Fatal("Failed to build using devcontainer CLI. " + commandErr.Error())
+	}
 }

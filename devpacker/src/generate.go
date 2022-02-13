@@ -23,11 +23,11 @@ var buildScriptPayload []byte
 func Generate(featuresPath string, outputPath string) {
 	// Load features.json, buildpack settings
 	featuresJson := LoadFeaturesJson(featuresPath)
-	buildpackSettings := LoadBuildpackSettings(featuresPath)
+	devpackSettings := LoadDevpackSettings(featuresPath)
 
 	// Copy core features content
 	os.MkdirAll(filepath.Join(outputPath, "bin"), 0755)
-	for _, sourcePath := range []string{"devcontainer-features.json", "devpack-settings.json", "features", "common"} {
+	for _, sourcePath := range []string{"devcontainer-features.json", DevpackSettingsFilename, "features", "common"} {
 		CpR(filepath.Join(featuresPath, sourcePath), outputPath)
 	}
 	// Output embedded bin/detect and bin/build files
@@ -61,17 +61,17 @@ func Generate(featuresPath string, outputPath string) {
 
 	var buildpack libcnb.Buildpack
 	buildpack.Info = libcnb.BuildpackInfo{
-		ID:      buildpackSettings.Publisher + "/" + buildpackSettings.FeatureSet,
-		Version: buildpackSettings.Version,
+		ID:      devpackSettings.Publisher + "/" + devpackSettings.FeatureSet,
+		Version: devpackSettings.Version,
 	}
-	if buildpackSettings.ApiVersion != "" {
-		buildpack.API = buildpackSettings.ApiVersion
+	if devpackSettings.ApiVersion != "" {
+		buildpack.API = devpackSettings.ApiVersion
 	} else {
 		buildpack.API = DefaultApiVersion
 	}
 
 	buildpack.Stacks = make([]libcnb.BuildpackStack, 0)
-	for _, stack := range buildpackSettings.Stacks {
+	for _, stack := range devpackSettings.Stacks {
 		buildpack.Stacks = append(buildpack.Stacks, libcnb.BuildpackStack{ID: stack})
 	}
 	var featureNameList []string
@@ -79,7 +79,7 @@ func Generate(featuresPath string, outputPath string) {
 		featureNameList = append(featureNameList, feature.Id)
 	}
 	buildpack.Metadata = make(map[string]interface{})
-	buildpack.Metadata[FeaturesetMetadataId] = buildpackSettings
+	buildpack.Metadata[FeaturesetMetadataId] = devpackSettings
 	buildpack.Metadata[FeaturesMetadataId] = featureNameList
 
 	// Write buildpack.toml - https://github.com/buildpacks/spec/blob/main/buildpack.md#buildpacktoml-toml

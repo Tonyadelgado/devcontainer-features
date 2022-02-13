@@ -12,7 +12,7 @@ func main() {
 
 	// Define flags
 	var buildMode string
-	flag.StringVar(&buildMode, "mode", GetContainerImageBuildMode(), "Container image build mode: production | devcontainer")
+	flag.StringVar(&buildMode, "mode", "", "Override container image build mode: production | devcontainer")
 	flag.Parse()
 	nonFlagArgs := flag.Args()
 
