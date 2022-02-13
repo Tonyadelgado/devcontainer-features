@@ -17,6 +17,6 @@
     id = "${publisher}/${featureset}/prodpacks/npm"
 
 [stack]
-id = "com.chuxel.stacks.test.bionic"
+id = "io.buildpacks.stacks.bionic"
 run-image = "ghcr.io/${publisher}/${featureset}/stack-run-image"
 build-image = "ghcr.io/${publisher}/${featureset}/stack-build-image"

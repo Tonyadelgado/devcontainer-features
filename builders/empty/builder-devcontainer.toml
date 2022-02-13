@@ -8,6 +8,6 @@
       id = "${publisher}/${featureset}/mode/devcontainer"
 
 [stack]
-  id = "com.chuxel.stacks.test.bionic"
+  id = "io.buildpacks.stacks.bionic"
   run-image = "ghcr.io/${publisher}/${featureset}/stack-devcontainer-run-image"
   build-image = "ghcr.io/${publisher}/${featureset}/stack-devcontainer-build-image"

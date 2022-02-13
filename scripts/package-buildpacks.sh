@@ -9,9 +9,7 @@ publisher="$(jq -r '.publisher' ../devpack-settings.json)"
 featureset_name="$(jq -r '.featureSet' ../devpack-settings.json)"
 version="$(jq -r '.version' ../devpack-settings.json)"
 
-echo "${packs_dir}"
 for pack_name in *; do
-    echo "${pack_name}"
     if [  -d "${pack_name}" ] && [ "${pack_name}" != "test" ]; then
         uri="ghcr.io/${publisher}/${featureset_name}/${packs_dir}/${pack_name}:${version}"
         echo "(*) Packaging ${packs_dir}/${pack_name} as ${uri}..."
