@@ -116,11 +116,10 @@ find_version_from_git_tags() {
         break_fix_digit_regex="(${escaped_separator}[0-9]+)?"
     else
         break_fix_digit_regex="${escaped_separator}[0-9]+"
-    fi
-    
+    fi    
     local version_regex="[0-9]+${escaped_separator}[0-9]+${break_fix_digit_regex}${version_suffix_regex//./\\.}"
-    # If we're passed a matching version number, just return it
-    if ! grep -E "^${versionMatchRegex}$" > /dev/null 2>&1; then
+    # If we're passed a matching version number, just return it, otherwise look for a version
+    if ! echo "${requested_version}" | grep -E "^${versionMatchRegex}$" > /dev/null 2>&1; then
         local version_list="$(git ls-remote --tags ${repository} | grep -oP "${prefix}\\K${version_regex}$" | tr -d ' ' | tr "${separator}" "." | sort -rV)"
         if [ "${requested_version}" = "latest" ] || [ "${requested_version}" = "current" ] || [ "${requested_version}" = "lts" ]; then
             declare -g ${variable_name}="$(echo "${version_list}" | head -n 1)"
