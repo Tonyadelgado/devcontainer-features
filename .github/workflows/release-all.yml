@@ -38,7 +38,7 @@ jobs:
       - name: Prep output locations
         run: |
           mkdir -p out/features
-          cp -rft out/features-temp common features install.sh devcontainer-features.json LICENSE.txt README.md
+          cp -rft out/features common features install.sh devcontainer-features.json LICENSE.txt README.md
           mv ./devpacker/out/* ./
 
       - name: Package dev container features
