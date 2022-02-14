@@ -39,6 +39,7 @@
 			"hujson",
 			"libcnb",
 			"libdevpacker",
+			"mkdir",
 			"modepacks",
 			"packcli",
 			"prodpacks"
