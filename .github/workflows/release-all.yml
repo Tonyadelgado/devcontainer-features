@@ -29,17 +29,21 @@ jobs:
           export _BUILD_ARG_PACKCLI_TARGETPATH="$HOME/.local"
           bash features/packcli/bin/acquire
           npm install -g @vscode/dev-container-cli
- 
-      - name: Package and publish devpack images
+       - name: Package and publish devpack images
         run: |
           export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
           bash scripts/build-and-publish-all.sh GHCR_TOKEN "${{ github.actor }}"
+
+      - name: Prep output locations
+        run: |
+          mkdir -p out/features
+          cp -rft out/features-temp common features install.sh devcontainer-features.json LICENSE.txt README.md
           mv ./devpacker/out/* ./
 
       - name: Package dev container features
         uses: microsoft/publish-dev-container-features-action@main
         with:
-          path-to-features: '.'
+          path-to-features: 'out/features'
 
       - name: Create checksums for files
         run: |
