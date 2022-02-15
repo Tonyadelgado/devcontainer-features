@@ -29,6 +29,8 @@ const ProjectTomlOptionSelectionEnvVarPrefix = "BP_CONTAINER_FEATURE_"
 const DefaultContainerImageBuildMode = "production"
 const ContainerImageBuildMarkerPath = "/usr/local/etc/dev-container-features/dcnb-build-mode"
 const DevpackSettingsFilename = "devpack-settings.json"
+const BuildModeDevContainerJsonSetting = "buildMode"
+const TargetPathDevContainerJsonSetting = "targetPath"
 
 var cachedContainerImageBuildMode = ""
 
@@ -227,8 +229,7 @@ func GetContainerImageBuildMode() string {
 func GetBuildEnvironment(feature FeatureConfig, optionSelections map[string]string, additionalVariables map[string]string) []string {
 	// Create environment that includes feature build args
 	env := append(os.Environ(),
-		GetOptionEnvVarName(OptionSelectionEnvVarPrefix, feature.Id, "")+"=true",
-		GetOptionEnvVarName(OptionSelectionEnvVarPrefix, feature.Id, "BUILD_MODE")+"="+GetContainerImageBuildMode())
+		GetOptionEnvVarName(OptionSelectionEnvVarPrefix, feature.Id, "")+"=true")
 	for optionId, selection := range optionSelections {
 		if selection != "" {
 			env = append(env, GetOptionEnvVarName(OptionSelectionEnvVarPrefix, feature.Id, optionId)+"="+selection)
@@ -300,7 +301,7 @@ func Cp(sourceFilePath string, targetFolderPath string) {
 		log.Fatal(err)
 	}
 
-	// Make target folder
+	// Make target file
 	targetFilePath := filepath.Join(targetFolderPath, sourceFileInfo.Name())
 	targetFile, err := os.Create(targetFilePath)
 	if err != nil {

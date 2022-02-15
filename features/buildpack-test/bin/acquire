@@ -7,7 +7,7 @@ FEATURE_ID="$(basename "${FEATURE_PATH}")"
 # Import common utils
 . "${FEATURE_PATH}/../../common/utils.sh"
 
-set_var_to_option_value "${FEATURE_ID}" build_mode build_mode "devcontainer"
+set_var_to_option_value "${FEATURE_ID}" buildmode build_mode "devcontainer"
 set_var_to_option_value "${FEATURE_ID}" profile_d profile_d "/usr/local/etc/dev-container-features/profile.d"
 set_var_to_option_value "${FEATURE_ID}" targetpath target_path "/usr/local"
 set_var_to_option_value "${FEATURE_ID}" version version "latest"

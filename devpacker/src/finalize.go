@@ -56,7 +56,7 @@ func FinalizeImage(imageToFinalize string, buildMode string, applicationFolder s
 		devContainerJsonMap, devContainerJsonPath = LoadDevContainerJsonAsMap(applicationFolder)
 		// Un-marshall devcontainer.json features into a map
 		if err := json.Unmarshal(devContainerJsonMap["features"], &devContainerJsonFeatureMap); err != nil {
-			log.Fatal(err)
+			log.Fatal("Failed to unmarshal features from devcontainer.json: ", err)
 		}
 	} else {
 		log.Println("Skipping devcontainer.json load since build mode is", labelMetadata.BuildMode)
@@ -67,10 +67,10 @@ func FinalizeImage(imageToFinalize string, buildMode string, applicationFolder s
 	log.Println("Inspecting image lifecycle metadata", imageToFinalize, "for feature metadata.")
 	devContainerJsonFeatureMap = convertLifecycleMetadataToFeatureOptionSelections(labelMetadata, devContainerJsonFeatureMap)
 
-	// Convert map back into a RawMessage for the map, and add it back into the devcontainer json object
+	// Convert feature map back into a RawMessage, and add it back into the devcontainer json object
 	featureRawMessage, err := json.Marshal(devContainerJsonFeatureMap)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to marshal devContainerJsonFeatureMap to json.RawMessage: ", err)
 	}
 	devContainerJsonMap["features"] = featureRawMessage
 
@@ -78,11 +78,10 @@ func FinalizeImage(imageToFinalize string, buildMode string, applicationFolder s
 	targetDevContainerJsonPath := devContainerJsonPath
 	if targetDevContainerJsonPath == "" {
 		targetDevContainerJsonPath = filepath.Join(applicationFolder, ".devcontainer.json")
-		devContainerJsonMap["image"] = []byte(imageToFinalize)
+		devContainerJsonMap["image"] = toJsonRawMessage(imageToFinalize)
 	}
 
-	// Always disable command override, force user env probe
-	//devContainerJsonMap["overrideCommand"] = toJsonRawMessage(false)
+	// Always force userEnvProbe to interactiveLoginShell
 	devContainerJsonMap["userEnvProbe"] = toJsonRawMessage("loginInteractiveShell")
 
 	// Append ".buildpack" to avoid overwriting
@@ -91,11 +90,11 @@ func FinalizeImage(imageToFinalize string, buildMode string, applicationFolder s
 	// Encode json content and write it to a file
 	updatedDevContainerJsonContent, err := json.MarshalIndent(devContainerJsonMap, "", "\t")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to marshal devContainerJsonMap to json: ", err)
 	}
 	log.Println("Writing out updated devcontainer.json file:", targetDevContainerJsonPath)
 	if err := WriteFile(targetDevContainerJsonPath, updatedDevContainerJsonContent); err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to write updated devcontainer.json file: ", err)
 	}
 
 	log.Println("Ensuring /cnb/lifecycle/launch is fired as needed in bashrc/profile/zshenv.")
@@ -110,19 +109,19 @@ func updateImageToEnsureLauncherEnv(imageToFinalize string) {
 	var err error
 	tempDir := filepath.Join(os.TempDir(), strconv.FormatInt(rand.Int63(), 36))
 	if err = os.MkdirAll(tempDir, 0777); err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to make temp directory: ", err)
 	}
 	dockerFilePath := filepath.Join(tempDir, "Dockerfile")
 	if err = WriteFile(dockerFilePath, envRestoreDockerfile); err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to write Dockerfile: ", err)
 	}
 	ensureLauncherEnvScriptPath := filepath.Join(tempDir, "ensure-launcher-env.sh")
 	if err = WriteFile(ensureLauncherEnvScriptPath, ensureLauncherEnvScript); err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to write ensure-launcher-env.sh: ", err)
 	}
 	dockerCli(tempDir, false, "build", "--build-arg", "IMAGE_NAME="+imageToFinalize, "-t", imageToFinalize, "-f", dockerFilePath, ".")
 	if err = os.RemoveAll(tempDir); err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to remove temp directory: ", err)
 	}
 }
 
@@ -136,7 +135,7 @@ func convertLifecycleMetadataToFeatureOptionSelections(labelMetadata LabelMetada
 				// If so, load the json contents
 				var layerFeatureMetadata LayerFeatureMetadata
 				if err := json.Unmarshal(layerFeatureMetadataRaw, &layerFeatureMetadata); err != nil {
-					log.Fatal(err)
+					log.Fatal("Failed to unmarshal dev container feature metadata: ", err)
 				}
 				// And compare remove the related feature from the passed in feature selections if present
 				for featureId := range devContainerJsonFeatureMap {
@@ -172,7 +171,7 @@ func dockerCli(workingDir string, captureOutput bool, args ...string) []byte {
 	}
 	commandErr := dockerCommand.Run()
 	if commandErr != nil || dockerCommand.ProcessState.ExitCode() != 0 || errorOutput.Len() != 0 {
-		log.Fatal("Docker command failed. " + errorOutput.String() + commandErr.Error())
+		log.Fatal("Docker command failed: " + errorOutput.String() + commandErr.Error())
 	}
 	return outputBytes.Bytes()
 }
@@ -181,7 +180,7 @@ func toJsonRawMessage(value interface{}) json.RawMessage {
 	var err error
 	var bytes json.RawMessage
 	if bytes, err = json.Marshal(value); err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to convert to json.RawMessage:", err)
 	}
 	return bytes
 }
@@ -236,6 +235,6 @@ func devContainerImageBuild(imageToFinalize string, tempDevContainerJsonPath str
 
 	// Report command error if there was one
 	if commandErr != nil || dockerCommand.ProcessState.ExitCode() != 0 {
-		log.Fatal("Failed to build using devcontainer CLI. " + commandErr.Error())
+		log.Fatal("Failed to build using devcontainer CLI: " + commandErr.Error())
 	}
 }

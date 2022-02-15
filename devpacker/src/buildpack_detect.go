@@ -82,20 +82,20 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings DevpackSettin
 	provide := libcnb.BuildPlanProvide{Name: fullFeatureId}
 	require := libcnb.BuildPlanRequire{Name: fullFeatureId, Metadata: make(map[string]interface{})}
 
+	// Always set build mode
+	optionSelections := map[string]string{BuildModeDevContainerJsonSetting: GetContainerImageBuildMode()}
 	// Add any option selections from BP_CONTAINER_FEATURE_<feature.Id>_<option> env vars and devcontainer.json (in devcontainer mode)
 	detected, optionSelections := detectOptionSelections(feature, buildpackSettings, devContainerJson)
-	if detected {
-		for optionId, selection := range optionSelections {
-			require.Metadata[GetOptionMetadataKey(optionId)] = selection
-		}
-		return true, provide, require, nil
+	// Always add optionSelections to require metadata
+	for optionId, selection := range optionSelections {
+		require.Metadata[GetOptionMetadataKey(optionId)] = selection
 	}
 
-	// Otherwise, check if detect script for feature exists, return not detected otherwise
+	// Check if detect script for feature exists, return whatever the result of the devcontainer.json and env var detection happens to be
 	detectScriptPath := GetFeatureScriptPath(context.Buildpack.Path, feature.Id, "detect")
 	_, err := os.Stat(detectScriptPath)
 	if err != nil {
-		return false, provide, require, nil
+		return detected, provide, require, nil
 	}
 
 	// Execute the script - set path to where a resulting devcontainer-features.env should be placed as env var

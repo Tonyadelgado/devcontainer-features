@@ -84,10 +84,24 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 		if err != nil {
 			log.Fatal("Failed to get directory contents in", context.Application.Path, "-", err)
 		}
+		// Copy devcontainer.json so it can be used for subsequent processing
+		devContainerJsonFullPath := FindDevContainerJson(context.Application.Path)
+		if devContainerJsonFullPath != "" {
+			Cp(devContainerJsonFullPath, "/tmp/")
+			if filepath.Base(devContainerJsonFullPath) == "devcontainer.json" {
+				if os.Rename("/tmp/devcontainer.json", "/tmp/.devcontainer.json"); err != nil {
+					log.Fatal("Failed to rename devcontainer.json to .devcontainer.json: ", err)
+				}
+			}
+		}
 		for _, entry := range entries {
 			if err := os.RemoveAll(filepath.Join(context.Application.Path, entry.Name())); err != nil {
 				log.Fatal("Failed to remove", entry.Name(), "-", err)
 			}
+		}
+		// Copy devcontainer.json back
+		if devContainerJsonFullPath != "" {
+			Cp("/tmp/.devcontainer.json", context.Application.Path)
 		}
 	} else {
 		log.Println("(*) Leaving application folder contents in place.")
@@ -118,8 +132,9 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 		return layer, nil
 	}
 
-	// Get build environment based on set options
+	// Always set targetPath to the layer path we were handed
 	fc.OptionSelections["targetPath"] = layer.Path
+	// Get build environment based on set options
 	env := GetBuildEnvironment(fc.Feature, fc.OptionSelections, map[string]string{
 		"PROFILE_D": filepath.Join(layer.Path, "profile.d"),
 	})
@@ -198,6 +213,12 @@ func createLayerContributorForFeature(feature FeatureConfig, devpackSettings Dev
 					optionSelections[optionId] = fmt.Sprint(selection)
 				}
 			}
+			// Always parse buildMode. If not set by detect (e.g. was required by another Buildpack), detect the buildMode instead
+			buildMode := entry.Metadata[GetOptionMetadataKey(BuildModeDevContainerJsonSetting)]
+			if buildMode == nil {
+				buildMode = GetContainerImageBuildMode()
+			}
+			optionSelections[BuildModeDevContainerJsonSetting] = fmt.Sprint(buildMode)
 			layerContributor.OptionSelections = optionSelections
 
 			return true, layerContributor

@@ -63,6 +63,12 @@
 					"proposals": ["/usr/local"],
 					"default": "/usr/local",
 					"description": "Target install path"
+				},
+				"buildMode": {
+					"type": "string",
+					"enum": ["production", "devcontainer"],
+					"default": "devcontainer",
+					"description": "Select the production build mode to skip installing development tools."
 				}
 			},
 			"extensions": [
@@ -94,6 +100,18 @@
 					"type": "boolean",
 					"default": true,
 					"description": "Install dependencies to compile native node modules (node-gyp)?"
+				},
+				"targetPath": {
+					"type": "string",
+					"proposals": ["/usr/local"],
+					"default": "/usr/local",
+					"description": "Target install path"
+				},
+				"buildMode": {
+					"type": "string",
+					"enum": ["production", "devcontainer"],
+					"default": "devcontainer",
+					"description": "Select the production build mode to skip installing development tools."
 				}
 			},
 			"extensions": ["dbaeumer.vscode-eslint"]
@@ -124,6 +142,12 @@
 					"proposals": ["/usr/local"],
 					"default": "/usr/local",
 					"description": "Target install path"
+				},
+				"buildMode": {
+					"type": "string",
+					"enum": ["production", "devcontainer"],
+					"default": "devcontainer",
+					"description": "Select the production build mode to skip installing development tools."
 				}
 			}
 		}

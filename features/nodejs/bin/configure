@@ -13,7 +13,7 @@ BP_CONTAINER_BUILD_MODE="${BP_CONTAINER_BUILD_MODE:-devcontainer}"
 # Import common utils
 . "${FEATURE_PATH}/../../common/utils.sh"
 
-set_var_to_option_value "${FEATURE_ID}" build_mode build_mode "devcontainer"
+set_var_to_option_value "${FEATURE_ID}" buildmode build_mode "devcontainer"
 set_var_to_option_value "${FEATURE_ID}" targetpath target_path "/usr/local"
 set_var_to_option_value "${FEATURE_ID}" nodeGypDependencies node_gyp "true"
 set_var_to_option_value "${FEATURE_ID}" installtools install_tools "true"
