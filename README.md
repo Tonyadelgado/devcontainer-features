@@ -10,8 +10,8 @@
 ## Adding another feature
 
 1. Update `/devcontainer-features.json` to add any feature configuration like extensions, settings, etc.
-  1. Add a `targetPath` option with a default for when used outside of a Devpack. Typically this is `/usr/local`.
-  1. Add a `buildMode` option if the feature needs to behave differently in production vs devcontainer mode.
+    1. Add a `targetPath` option with a default for when used outside of a Devpack. Typically this is `/usr/local`.
+    1. Add a `buildMode` option if the feature needs to behave differently in production vs devcontainer mode.
 2. Create a sub-folder under `/features` with a `bin` folder that contains one or more of the following scripts/binaries:
     - `acquire` - [Feature/Devpack] Main step for tools acquisition and installation. **May run as a user other than root, needs to take a path as input.** Specifcally, the path in the `_BUILD_ARG_<FEATURE_ID>_TARGETPATH` env var.
     - `configure` - [Feature/Devpack] Post-installation step for things that require root access to perform. Not executed by pack CLI when used as a Devpack, but instead using the dev container CLI or VS Code.
