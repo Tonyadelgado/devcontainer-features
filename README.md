@@ -9,14 +9,14 @@
 
 ## Adding another feature
 
-1. Create a sub-folder under `/features` with a `bin` folder that contains one or more of the following scripts/binaries:
-    - `acquire` - [Feature/Devpack] Main step for tools acquisition and installation. May run as a user other than root.
+1. Update `devcontainer-features.json` to add any feature configuration like extensions, settings, etc.
+  1. Be sure to include a `targetPath` option in your `devcontainer-features.json` entry and use this for the install location this will be automatically set when the feature is used in a Devpack.
+2. Create a sub-folder under `/features` with a `bin` folder that contains one or more of the following scripts/binaries:
+    - `acquire` - [Feature/Devpack] Main step for tools acquisition and installation. **May run as a user other than root, should only write to targetpath in a _BUILD_ARG_<FEATURE_ID>_TARGETPATH env var**
     - `configure` - [Feature/Devpack] Post-installation step for things that require root access to perform. Not executed by pack CLI when used as a Devpack, but instead using the dev container CLI or VS Code.
     - `detect` - [Devpack] Optional script to do detection if no other buildpacks or devcontainer.json (in devcontainer build mode) reference it.
     - `verify-prereqs` - [Feature] Runs before acquire to install any dependencies needed acquire the tool. Skipped in a Devpack since these prerequisites need to be in the build "stack" image.
 2. Ensure all scripts/binaries have the execute bit set (chmod +x).
-2. Update `devcontainer-features.json` to add any feature configuration like extensions, settings, etc.
-3. Be sure to include a `targetPath` option in your `devcontainer-features.json` entry since this will be automatically set when the feature is used in a Devpack.
 
 ### Environment variables for `acquire` and `configure`
 
