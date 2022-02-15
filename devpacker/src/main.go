@@ -3,7 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
+	"strings"
 
 	"github.com/buildpacks/libcnb"
 )
@@ -55,22 +57,57 @@ func executeGenerateCommand(args []string) {
 }
 
 func executeFinalizeCommand(args []string, buildMode string) {
-	applicationFolder := "."
+	var applicationFolder string
 	if len(args) < 1 {
 		fmt.Println("Missing required parameter. Usage: devpacker finalize <image ID> [application folder]")
 		os.Exit(1)
 	}
 	if len(args) > 1 {
 		applicationFolder = args[1]
+	} else {
+		if cwd, err := os.Getwd(); err != nil {
+			log.Fatal("Unable got get current working directory.", err)
+		} else {
+			applicationFolder = cwd
+		}
 	}
 	FinalizeImage(args[0], buildMode, applicationFolder)
 }
 
 func executePackBuildCommand(args []string, buildMode string) {
+	var applicationFolder string
+	var imageName string
+	var flagArgs []string
 	if len(args) < 1 {
-		fmt.Println("Missing required parameter. Usage: devpacker build <image ID>")
+		fmt.Println("Missing required parameter. Usage: devpacker build <image ID> [pack CLI args]")
 		os.Exit(1)
 	}
+	for len(args) > 0 {
+		if strings.HasPrefix(args[0], "-") {
+			// Handle flags that have no value
+			if len(args) == 1 || strings.HasPrefix(args[1], "-") {
+				flagArgs = append(flagArgs, args[0])
+				args = args[1:]
+			} else {
+				// Update application folder if -p or --path flag found
+				if args[0] == "-p" || args[0] == "--path" {
+					applicationFolder = args[1]
+				}
+				flagArgs = append(flagArgs, args[0], args[1])
+				args = args[2:]
+			}
+		} else {
+			imageName = args[0]
+			args = args[1:]
+		}
+	}
+	if applicationFolder == "" {
+		if cwd, err := os.Getwd(); err != nil {
+			log.Fatal("Unable got get current working directory.", err)
+		} else {
+			applicationFolder = cwd
+		}
+	}
 	os.Setenv(ContainerImageBuildModeEnvVarName, buildMode)
-	PackBuild(args[0], buildMode, args[1:])
+	PackBuild(imageName, buildMode, applicationFolder, flagArgs)
 }

@@ -8,7 +8,8 @@ mkdir -p "${buildpack_root}"
 "${script_dir}"/debug-prep.sh
 
 cd "${script_dir}/test-project"
-pack build -v test_image \
+pack build test_image \
+    -v \
     -e "BP_CONTAINER_FEATURE_BUILDPACK_TEST=true" \
     -e "BP_CONTAINER_FEATURE_BUILDPACK_TEST_FOO=bar-override" \
     --pull-policy if-not-present \

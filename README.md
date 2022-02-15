@@ -9,8 +9,9 @@
 
 ## Adding another feature
 
-1. Update `devcontainer-features.json` to add any feature configuration like extensions, settings, etc.
-  1. Be sure to include a `targetPath` option in your `devcontainer-features.json` entry and use this for the install location this will be automatically set when the feature is used in a Devpack.
+1. Update `/devcontainer-features.json` to add any feature configuration like extensions, settings, etc.
+  1. Add a `targetPath` option with a default for when used outside of a Devpack. Typically this is `/usr/local`.
+  1. Add a `buildMode` option if the feature needs to behave differently in production vs devcontainer mode.
 2. Create a sub-folder under `/features` with a `bin` folder that contains one or more of the following scripts/binaries:
     - `acquire` - [Feature/Devpack] Main step for tools acquisition and installation. **May run as a user other than root, should only write to targetpath in a _BUILD_ARG_<FEATURE_ID>_TARGETPATH env var**
     - `configure` - [Feature/Devpack] Post-installation step for things that require root access to perform. Not executed by pack CLI when used as a Devpack, but instead using the dev container CLI or VS Code.
@@ -22,7 +23,7 @@
 
 The `acquire` and `configure` scripts will have some environment passed into them it:
 
-- `_BUILD_ARG_<FEATUREID>_BUILD_MODE` - Allows the script to alter behavior depending on what the feature is being used for. Will be either `devcontainer` when the build is to create a dev container image or `production` for non-development scenarios.
+- `_BUILD_ARG_<FEATUREID>_BUILDMODE` - Allows the script to alter behavior depending on what the feature is being used for. Will be either `devcontainer` when the build is to create a dev container image or `production` for non-development scenarios.
 - `_BUILD_ARG_<FEATUREID>_TARGETPATH` - Location to install the tool. Include symlinks to `bin` in this folder to ensure they are in the path if you do not directly install there.
 - `_BUILD_ARG_<FEATUREID>_PROFILE_D` - Location you can place any executable (chmod +x) scripts that should be sourced from an interactive or login shell. Note that this is just used to resolve environment variables, not bring new functions into the shell.
 - `_BUILD_ARG_<FEATUREID>_<OPTION>` - Any selections made based on options in `devcontainer-features.json`. Mirrors what would be in `devcontainer-features.env` in `install.sh`. When used in a Devpack, you can also set these variables in `project.toml` or the `pack` CLI using `BP_CONTAINER_FEATURE_<FEATUREID>_<OPTION>` and will always be applied and setting `BP_CONTAINER_FEATURE_<FEATUREID>` to `true` will enable the feature regardless. Values in `devcontainer.json` are only considered when `_BUILD_ARG_<FEATUREID>_BUILD_MODE` is set to `devcontainer`.
@@ -31,9 +32,9 @@ The `acquire` and `configure` scripts will have some environment passed into the
 
 The detect script is only used in Devpacks and therefore has a few different environment variables passed into it.
 
-- `_BUILD_ARG_<FEATUREID>_BUILD_MODE` - Allows the script to alter behavior depending on what the feature is being used for. Will be either `devcontainer` when the build is to create a dev container image or `production` for non-development scenarios.
+- `_BUILD_ARG_<FEATUREID>_BUILDMODE` - Allows the script to alter behavior depending on what the feature is being used for. Will be either `devcontainer` when the build is to create a dev container image or `production` for non-development scenarios.
 - `_BUILD_ARG_<FEATUREID>_<OPTION>` - Any selections already made based on options in `devcontainer-features.json`. Mirrors what would be in `devcontainer-features.env` in `install.sh`.
--`_BUILD_ARG_<FEATUREID>_SELECTION_ENV_FILE_PATH` - Specifies the location of a `.env` file that can be used to update feature options that should be passed as build arguments to the `acquire` or `configure` scripts. Add these selections in the file using the same `_BUILD_ARG_<FEATUREID>_<OPTION>` variables the other scripts expect as inputs. However, note that `...TARGETPATH`, `...PROFILE_D`, and `...BUILD_MODE` variables cannot be updated.
+-`_BUILD_ARG_<FEATUREID>_SELECTION_ENV_FILE_PATH` - Specifies the location of a `.env` file that can be used to update feature options that should be passed as build arguments to the `acquire` or `configure` scripts. Add these selections in the file using the same `_BUILD_ARG_<FEATUREID>_<OPTION>` variables the other scripts expect as inputs. However, note that `...TARGETPATH`, `...PROFILE_D`, and `...BUILDMODE` variables cannot be updated.
 
 Any features set up this way will be automatically included in the next repository release.
 
@@ -98,23 +99,24 @@ To release an update to the features, Devpack, Buildpacks, stack images, devpack
 
 GitHub Actions will take care of the rest.
 
-## Using the pack and devpacker CLIs
+## Using the devpacker CLI
 
 There are scripts in this repository under the `scripts` and `test` folders under the root (`/`), `/devpacker` and `prodpacks` folders to do most things you'll want to do.
 
 To use the `devpacker` CLI locally, go to the repository releases and download the .zip / .tgz file for your system. Add / symlink `devpacker` or `devpacker.cmd` into your `PATH`.
 
-You can use the full builders with the pack CLI locally as well. For example, to use the production builder to produce an image called `prod_test_image`, execute the following from your project repo:
+You can use the full builders with the `devpacker` CLI locally as well. The `devpacker build` command accepts the same arguments as the `pack build`. For example, to use the production builder to produce an image called `prod_test_image`, execute the following from your project repo:
 
 ```bash
-pack build prod_test_image --trust-builder  --builder ghcr.io/chuxel/devcontainer-features/builder-prod-full
+devpacker build prod_test_image --trust-builder --pull-policy if-not-present --builder ghcr.io/chuxel/devcontainer-features/builder-prod-full
 ```
 
-For the dev container builder, the devpacker CLI's finalize step should be run. To do this with an image called `test_image`:
+Generally you could use the pack CLI here instead, but any post-processing finalization steps will not happen if needed.
+
+For the dev container builder, just change the builder image. To do this with an image called `test_image`:
 
 ```bash
-pack build test_image --trust-builder  --builder ghcr.io/chuxel/devcontainer-features/builder-devcontainer-full
-devpacker finalize test_image
+devpacker build test_image --trust-builder  --pull-policy if-not-present --builder ghcr.io/chuxel/devcontainer-features/builder-devcontainer-full
 ```
 
-This will tweak the image and output a modified `devcontainer.json.buildpack` file. You can rename this to `devcontainer.json` and open it up in Remote - Containers to finish post-processing. This last step will eventually be wrapped in a `devpacker` CLI command that takes advantage of the `devcontainer` CLI to produce the final image (or vice versa).
+This will tweak the image and output a modified `devcontainer.json.buildpack` file. You can rename this to `devcontainer.json` and open it up in Remote - Containers to finish post-processing.

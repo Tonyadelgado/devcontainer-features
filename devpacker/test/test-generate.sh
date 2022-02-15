@@ -7,10 +7,11 @@ mkdir -p "${buildpack_root}"
 "${script_dir}"/../scripts/compile.sh true
 "${script_dir}"/../devpacker generate "${script_dir}"/../.. "${buildpack_root}"
 
-cd "${script_dir}/test-project"
-pack build -v test_image \
+pack build test_image \
+    -v \
     -e "BP_CONTAINER_FEATURE_BUILDPACK_TEST=true" \
     -e "BP_CONTAINER_FEATURE_BUILDPACK_TEST_FOO=bar-override" \
+    -p "${script_dir}/test-project"
     --pull-policy if-not-present \
     --builder ghcr.io/chuxel/devcontainer-features/builder-devcontainer-empty \
     --trust-builder \

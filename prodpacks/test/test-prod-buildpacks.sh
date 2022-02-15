@@ -9,8 +9,9 @@ prodpack_root="${script_dir}/.."
 "${devpacker_dir}"/devpacker generate "${script_dir}"/../.. "${devpack_root}"
 
 "${script_dir}"/../../builders/create-builders.sh empty
-cd "${script_dir}/test-project"
-pack build -v prod_test_image \
+"${devpacker_dir}"/devpacker build prod_test_image \
+    -v \
+    -p "${script_dir}/test-project" \
     --pull-policy if-not-present \
     --builder ghcr.io/chuxel/devcontainer-features/builder-prod-empty \
     --trust-builder \
