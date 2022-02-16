@@ -165,14 +165,10 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 		OptionSelections: fc.OptionSelections,
 	}
 
-	// TODO: Process containerEnv? This only works if the buildpack entrypoint is used and the dev container CLI
-	// will add these as global env vars anyway. This model for environment variable management isn't that great
-	// since any docker exec process will not get them (as they're not children) of the entrypoint process.
-	/*
-		if fc.Feature.ContainerEnv != nil && len(fc.Feature.ContainerEnv) > 0 {
-			processContainerEnv(fc.Feature.ContainerEnv, layer)
-		}
-	*/
+	// TODO: Process containerEnv? Results in dupes if something like PATH is updated, but can be needed in production mode.
+	if fc.Feature.ContainerEnv != nil && len(fc.Feature.ContainerEnv) > 0 {
+		processContainerEnv(fc.Feature.ContainerEnv, layer)
+	}
 
 	// Finally, update layer types based on what was detected when created
 	layer.LayerTypes = fc.LayerTypes
