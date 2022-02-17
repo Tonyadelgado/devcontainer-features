@@ -26,8 +26,6 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 
 	var result libcnb.DetectResult
 
-	// TODO: Enable detect script to return options that should then be passed on to the builder via metadata, then drop devcontainer.json parsing in the build stage
-
 	// Load features.json, buildpack settings
 	devpackSettings := LoadDevpackSettings(context.Buildpack.Path)
 	featuresJson := LoadFeaturesJson(context.Buildpack.Path)

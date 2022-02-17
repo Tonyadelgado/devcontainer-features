@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -78,7 +79,7 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 
 	// If we're in devcontainer mode, delete the app folder contents so they are omitted in the output.
 	// This would not affect detection logic because any detect steps will have already run by this point.
-	if buildMode == "devcontainer" && os.Getenv("BP_DCNB_OMIT_APP_DIR") != "false" {
+	if buildMode == "devcontainer" && os.Getenv(RemoveApplicationFolderOverrideEnvVarName) != "false" {
 		log.Println("(*) Removing contents at", context.Application.Path, "so they are not in the resulting output.")
 		entries, err := os.ReadDir(context.Application.Path)
 		if err != nil {
@@ -136,25 +137,48 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	fc.OptionSelections["targetPath"] = layer.Path
 	// Get build environment based on set options
 	env := GetBuildEnvironment(fc.Feature, fc.OptionSelections, map[string]string{
-		"PROFILE_D": filepath.Join(layer.Path, "profile.d"),
+		"PROFILE_D":    filepath.Join(layer.Path, "profile.d"),
+		"EXEC_D":       filepath.Join(layer.Path, "exec.d"),
+		"ENTRYPOINT_D": filepath.Join(layer.Path, "entrypoint.d"),
 	})
 
-	// Execute the script
-	log.Printf("- Executing %s\n", acquireScriptPath)
-	logWriter := log.Writer()
-	acquireCommand := exec.Command(acquireScriptPath)
-	acquireCommand.Env = env
-	acquireCommand.Stdout = logWriter
-	acquireCommand.Stderr = logWriter
-	acquireCommand.Dir = fc.Context.Application.Path
-
-	if err := acquireCommand.Run(); err != nil {
-		return layer, err
+	// Run acquire script (if it exists)
+	var acquireExecuted bool
+	if acquireExecuted, err = fc.executeFeatureScript("acquire", env); err != nil {
+		log.Fatal("Failed to execute acquire script for feature", fc.FullFeatureId(), ": ", err)
 	}
-	exitCode := acquireCommand.ProcessState.ExitCode()
-	if exitCode != 0 {
-		log.Printf("Error executing %s. Exit code %d.\n", acquireScriptPath, exitCode)
-		return layer, NonZeroExitError{ExitCode: exitCode}
+
+	// Copy in devcontainer-feature.json for future reference
+	featureScriptBase := filepath.Join(layer.Path, DevContainerConfigSubfolder, "feature-config")
+	var featureBytes []byte
+	if featureBytes, err = json.Marshal(fc.Feature); err != nil {
+		log.Fatal("Failed to marshal feature config to json: ", err)
+	}
+
+	// Wire in configure script (if it exists) - we'll fire this in post processing
+	configureExists := false
+	configureScriptPath := GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, "configure")
+	if _, err := os.Stat(configureScriptPath); err == nil {
+		log.Println("Setting up configure script for post processing...")
+		configureExists = true
+		// Copy configure script into layer if it exists
+		featureScriptFolder := filepath.Join(featureScriptBase, "features")
+		if err := os.MkdirAll(featureScriptFolder, 0777); err != nil {
+			log.Fatal("Could not create feature folder: ", err)
+		}
+		CpR(filepath.Join(fc.Context.Buildpack.Path, "features", fc.Feature.Id), featureScriptFolder)
+		CpR(filepath.Join(fc.Context.Buildpack.Path, "common"), featureScriptBase)
+		// output an environment file that we can source later
+		envFileContents := ""
+		for _, line := range env {
+			envFileContents += line + "\n"
+		}
+		WriteFile(filepath.Join(featureScriptFolder, fc.Feature.Id, "devcontainer-features.env"), []byte(envFileContents))
+	}
+
+	// If there's nothing to do, exit
+	if !acquireExecuted && !configureExists {
+		return layer, nil
 	}
 
 	// Add ID and option selections to layer metadata, add to LayerContributor
@@ -166,9 +190,9 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	}
 
 	// TODO: Process containerEnv? Results in dupes if something like PATH is updated, but can be needed in production mode.
-	if fc.Feature.ContainerEnv != nil && len(fc.Feature.ContainerEnv) > 0 {
-		processContainerEnv(fc.Feature.ContainerEnv, layer)
-	}
+	//if fc.Feature.ContainerEnv != nil && len(fc.Feature.ContainerEnv) > 0 {
+	//	processContainerEnv(fc.Feature.ContainerEnv, layer)
+	//}
 
 	// Finally, update layer types based on what was detected when created
 	layer.LayerTypes = fc.LayerTypes
@@ -267,4 +291,32 @@ func processEnvVar(name string, value string, envVars map[string]string) (string
 	}
 
 	return before, after, overwrite
+}
+
+func (fc FeatureLayerContributor) executeFeatureScript(scriptName string, env []string) (bool, error) {
+	scriptPath := GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, scriptName)
+	if _, err := os.Stat(scriptPath); err != nil {
+		log.Printf("- Skipping feature %s. No acquire script.", fc.FullFeatureId())
+		return false, nil
+	}
+
+	// Execute the script
+	log.Printf("- Executing %s\n", scriptPath)
+	logWriter := log.Writer()
+	command := exec.Command(scriptPath)
+	command.Env = env
+	command.Stdout = logWriter
+	command.Stderr = logWriter
+	command.Dir = fc.Context.Application.Path
+
+	if err := command.Run(); err != nil {
+		return false, err
+	}
+	exitCode := command.ProcessState.ExitCode()
+	if exitCode != 0 {
+		log.Printf("Error executing %s. Exit code %d.\n", scriptPath, exitCode)
+		return false, NonZeroExitError{ExitCode: exitCode}
+	}
+
+	return true, nil
 }

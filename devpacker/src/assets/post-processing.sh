@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# The CNB_LAYERS_DIR is filtered out by the launcher, so this is an easy way to detect if the current process
+# The CNB_APP_DIR is filtered out by the launcher, so this is an easy way to detect if the current process
 # was started via the launcher. In the event of an "docker exec", the containe entrypoint is not fired, so
 # the shell process will not be launched properly. So, what this will do is detect if we're in a login or 
 # interactive sh, bash, or zsh process and replace the shell with one started using /cnb/lifecycle/launcher
@@ -31,3 +31,15 @@ add_to_top_of_file() {
 add_to_top_of_file /etc/bash.bashrc
 add_to_top_of_file /etc/profile
 add_to_top_of_file /etc/zsh/zshenv /etc/zsh
+
+# Run compile scripts if present
+for feature in "${CNB_LAYERS_DIR:-/layers}"/*/*/etc/dev-container-features/feature-config/features/*; do
+    set -a
+    . "${feature}/devcontainer-features.env"
+    set +a
+    chmod +x "${feature}/bin/configure"
+    "${feature}/bin/configure"
+done
+# Remove when done
+rm -rf "${CNB_LAYERS_DIR}"/*/*/etc/dev-container-features/feature-config
+

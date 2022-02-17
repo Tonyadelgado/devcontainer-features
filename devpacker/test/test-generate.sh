@@ -11,7 +11,7 @@ pack build test_image \
     -v \
     -e "BP_CONTAINER_FEATURE_BUILDPACK_TEST=true" \
     -e "BP_CONTAINER_FEATURE_BUILDPACK_TEST_FOO=bar-override" \
-    -p "${script_dir}/test-project"
+    -p "${script_dir}/test-project" \
     --pull-policy if-not-present \
     --builder ghcr.io/chuxel/devcontainer-features/builder-devcontainer-empty \
     --trust-builder \

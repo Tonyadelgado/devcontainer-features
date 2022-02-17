@@ -32,10 +32,10 @@ type LabelMetadata struct {
 	Lifecycle LifecycleLabelMetadata
 }
 
-//go:embed assets/ensure-launcher-env.sh
-var ensureLauncherEnvScript []byte
+//go:embed assets/post-processing.sh
+var postProcessingScript []byte
 
-//go:embed assets/ensure-launcher-env.Dockerfile
+//go:embed assets/post-processing.Dockerfile
 var envRestoreDockerfile []byte
 
 func FinalizeImage(imageToFinalize string, buildMode string, applicationFolder string) {
@@ -116,7 +116,7 @@ func updateImageToEnsureLauncherEnv(imageToFinalize string) {
 		log.Fatal("Failed to write Dockerfile: ", err)
 	}
 	ensureLauncherEnvScriptPath := filepath.Join(tempDir, "ensure-launcher-env.sh")
-	if err = WriteFile(ensureLauncherEnvScriptPath, ensureLauncherEnvScript); err != nil {
+	if err = WriteFile(ensureLauncherEnvScriptPath, postProcessingScript); err != nil {
 		log.Fatal("Failed to write ensure-launcher-env.sh: ", err)
 	}
 	dockerCli(tempDir, false, "build", "--build-arg", "IMAGE_NAME="+imageToFinalize, "-t", imageToFinalize, "-f", dockerFilePath, ".")

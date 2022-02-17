@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Do somethig that requires root
+mkdir /test
+env > /test/env.txt

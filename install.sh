@@ -4,6 +4,7 @@ set -e
 DEV_CONTAINER_FEATURE_SMOKE_TEST="${1:-"${DEV_CONTAINER_FEATURE_SMOKE_TEST-false}"}"
 DEV_CONTAINER_CONFIG_DIR="/usr/local/etc/dev-container-features"
 DEV_CONTAINER_PROFILE_D="${DEV_CONTAINER_CONFIG_DIR}/profile.d"
+DEV_CONTAINER_EXEC_D="${DEV_CONTAINER_CONFIG_DIR}/exec.d"
 DEV_CONTAINER_MARKERS="${DEV_CONTAINER_CONFIG_DIR}/markers"
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -27,7 +28,6 @@ set +a
 # Detect username for acquire script
 username="automatic"
 detect_user username
-echo "(*) User for acquire script: ${username:-root}"
 
 # Syntax: conditional_install <feature_id>
 # Executes feature's scripts if _BUILD_ARG_<FEATURE_ID> is set. It will
@@ -41,10 +41,12 @@ conditional_install() {
     fi
     local feature_bin_dir="./features/${feature_id}/bin"
 
-    # Always set profile.d folder name - buildpacks will also set this to their own values
+    # Always set profile.d/exec.d folder name - buildpacks will also set this to their own values
     local feature_id_safe="$(echo "${feature_id}" | tr '[:lower:]' '[:upper:]' | tr '-' '_' )"
     profile_d_build_arg_name="_BUILD_ARG_${feature_id_safe}_PROFILE_D"
     declare -x ${profile_d_build_arg_name}="${DEV_CONTAINER_PROFILE_D}"
+    exec_d_build_arg_name="_BUILD_ARG_${feature_id_safe}_EXEC_D"
+    declare -x ${exec_d_build_arg_name}="${DEV_CONTAINER_EXEC_D}"
 
     # Always set build mode to devcontainer - buildpacks will also set this to an appropriate value
     build_mode_build_arg_name="_BUILD_ARG_${feature_id_safe}_BUILD_MODE"
@@ -67,14 +69,14 @@ conditional_install() {
     echo
 }
 
-# Inject profile.d processing script into /etc/profile.d, /etc/bash.bashrc, /etc/zsh/zshrc
+# Inject profile.d/exec.d processing script into /etc/profile.d, /etc/bash.bashrc, /etc/zsh/zshrc
 # for scenarios where they are used in a feature that is not installed via the buildpack.
 # This makes it compatible with the buildpack spec's support for the same idea. We could
 # in concept just adopt this as the approach for dev container features in general as well.
-add_profile_d_to_file() {
+add_env_boostrap_to_file() {
     local filename="$1"
     local check_exists="${2:-$1}"
-    local snippet=". ${DEV_CONTAINER_CONFIG_DIR}/profile.d.sh"
+    local snippet=". ${DEV_CONTAINER_CONFIG_DIR}/env-bootstrap.sh"
     if [ ! -e "${check_exists}" ]; then
         echo "${check_exists} does not exist. Skipping."
         return
@@ -85,25 +87,37 @@ add_profile_d_to_file() {
     fi
 }
 
-mkdir -p "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_MARKERS}"
-chown "${username}" "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_MARKERS}"
-if [ ! -e "${DEV_CONTAINER_CONFIG_DIR}/profile.d.sh" ]; then
-cat << EOF > "${DEV_CONTAINER_CONFIG_DIR}/profile.d.sh"
-if [ -d "${DEV_CONTAINER_PROFILE_D}" ] && [ -z "\${DEV_CONTAINER_PROFILE_D_DONE}" ]; then
-    for script in "${DEV_CONTAINER_PROFILE_D}"/*.sh; do
-        if [ -r "\$script" ]; then
-            . \$script
-        fi
-        unset script
-    done
-    export DEV_CONTAINER_PROFILE_D_DONE="true"
+mkdir -p "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_EXEC_D}" "${DEV_CONTAINER_MARKERS}"
+chown "${username}" "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_EXEC_D}" "${DEV_CONTAINER_MARKERS}"
+if [ ! -e "${DEV_CONTAINER_CONFIG_DIR}/env-bootstrap.sh" ]; then
+cat << EOF > "${DEV_CONTAINER_CONFIG_DIR}/env-bootstrap.sh"
+if [ -z "\${DEV_CONTAINER_ENV_BOOSTRAP_DONE}" ]; then
+    if [ -d "${DEV_CONTAINER_PROFILE_D}" ]; then
+        for script in "${DEV_CONTAINER_PROFILE_D}"/*; do
+            if [ -r "\$script" ]; then
+                . \$script
+            fi
+            unset script
+        done
+    fi
+    if [ -d "${DEV_CONTAINER_EXEC_D}" ]; then
+        for executable in "${DEV_CONTAINER_EXEC_D}"/*; do
+            if [ -r "\$executable" ]; then
+                set -a
+                eval "\$( "\$executable" )"
+                set +a
+            fi
+            unset executable
+        done
+    fi
+    export DEV_CONTAINER_ENV_BOOSTRAP_DONE="true"
 fi
 EOF
 fi
-symlink_if_ne ${DEV_CONTAINER_CONFIG_DIR}/profile.d.sh /etc/profile.d/9999-vscdc-profile.sh
-add_profile_d_to_file /etc/bash.bashrc
-add_profile_d_to_file /etc/zsh/zshrc /etc/zsh
-add_profile_d_to_file /etc/zsh/zprofile /etc/zsh
+symlink_if_ne "${DEV_CONTAINER_CONFIG_DIR}/env-bootstrap.sh" /etc/profile.d/9999-env-bootstrap.sh
+add_env_boostrap_to_file /etc/bash.bashrc
+add_env_boostrap_to_file /etc/zsh/zshrc /etc/zsh
+add_env_boostrap_to_file /etc/zsh/zprofile /etc/zsh
 
 # Execute actual feature installs
 conditional_install buildpack-test
