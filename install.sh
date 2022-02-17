@@ -4,7 +4,6 @@ set -e
 DEV_CONTAINER_FEATURE_SMOKE_TEST="${1:-"${DEV_CONTAINER_FEATURE_SMOKE_TEST-false}"}"
 DEV_CONTAINER_CONFIG_DIR="/usr/local/etc/dev-container-features"
 DEV_CONTAINER_PROFILE_D="${DEV_CONTAINER_CONFIG_DIR}/profile.d"
-DEV_CONTAINER_EXEC_D="${DEV_CONTAINER_CONFIG_DIR}/exec.d"
 DEV_CONTAINER_MARKERS="${DEV_CONTAINER_CONFIG_DIR}/markers"
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -45,8 +44,6 @@ conditional_install() {
     local feature_id_safe="$(echo "${feature_id}" | tr '[:lower:]' '[:upper:]' | tr '-' '_' )"
     profile_d_build_arg_name="_BUILD_ARG_${feature_id_safe}_PROFILE_D"
     declare -x ${profile_d_build_arg_name}="${DEV_CONTAINER_PROFILE_D}"
-    exec_d_build_arg_name="_BUILD_ARG_${feature_id_safe}_EXEC_D"
-    declare -x ${exec_d_build_arg_name}="${DEV_CONTAINER_EXEC_D}"
 
     # Always set build mode to devcontainer - buildpacks will also set this to an appropriate value
     build_mode_build_arg_name="_BUILD_ARG_${feature_id_safe}_BUILD_MODE"
@@ -87,29 +84,17 @@ add_env_boostrap_to_file() {
     fi
 }
 
-mkdir -p "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_EXEC_D}" "${DEV_CONTAINER_MARKERS}"
-chown "${username}" "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_EXEC_D}" "${DEV_CONTAINER_MARKERS}"
+mkdir -p "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_MARKERS}"
+chown "${username}" "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_MARKERS}"
 if [ ! -e "${DEV_CONTAINER_CONFIG_DIR}/env-bootstrap.sh" ]; then
 cat << EOF > "${DEV_CONTAINER_CONFIG_DIR}/env-bootstrap.sh"
-if [ -z "\${DEV_CONTAINER_ENV_BOOSTRAP_DONE}" ]; then
-    if [ -d "${DEV_CONTAINER_PROFILE_D}" ]; then
-        for script in "${DEV_CONTAINER_PROFILE_D}"/*; do
-            if [ -r "\$script" ]; then
-                . \$script
-            fi
-            unset script
-        done
-    fi
-    if [ -d "${DEV_CONTAINER_EXEC_D}" ]; then
-        for executable in "${DEV_CONTAINER_EXEC_D}"/*; do
-            if [ -r "\$executable" ]; then
-                set -a
-                eval "\$( "\$executable" )"
-                set +a
-            fi
-            unset executable
-        done
-    fi
+if [ -z "\${DEV_CONTAINER_ENV_BOOSTRAP_DONE}" ] && [ -d "${DEV_CONTAINER_PROFILE_D}" ]; then
+    for script in "${DEV_CONTAINER_PROFILE_D}"/*; do
+        if [ -r "\$script" ]; then
+            . \$script
+        fi
+        unset script
+    done
     export DEV_CONTAINER_ENV_BOOSTRAP_DONE="true"
 fi
 EOF

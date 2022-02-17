@@ -138,7 +138,6 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	// Get build environment based on set options
 	env := GetBuildEnvironment(fc.Feature, fc.OptionSelections, map[string]string{
 		"PROFILE_D":    filepath.Join(layer.Path, "profile.d"),
-		"EXEC_D":       filepath.Join(layer.Path, "exec.d"),
 		"ENTRYPOINT_D": filepath.Join(layer.Path, "entrypoint.d"),
 	})
 
@@ -150,9 +149,9 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 
 	// Copy in devcontainer-feature.json for future reference
 	featureScriptBase := filepath.Join(layer.Path, DevContainerConfigSubfolder, "feature-config")
-	var featureBytes []byte
-	if featureBytes, err = json.Marshal(fc.Feature); err != nil {
-		log.Fatal("Failed to marshal feature config to json: ", err)
+	featureScriptFolder := filepath.Join(featureScriptBase, "features")
+	if err := os.MkdirAll(featureScriptFolder, 0777); err != nil {
+		log.Fatal("Could not create feature folder: ", err)
 	}
 
 	// Wire in configure script (if it exists) - we'll fire this in post processing
@@ -162,10 +161,6 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 		log.Println("Setting up configure script for post processing...")
 		configureExists = true
 		// Copy configure script into layer if it exists
-		featureScriptFolder := filepath.Join(featureScriptBase, "features")
-		if err := os.MkdirAll(featureScriptFolder, 0777); err != nil {
-			log.Fatal("Could not create feature folder: ", err)
-		}
 		CpR(filepath.Join(fc.Context.Buildpack.Path, "features", fc.Feature.Id), featureScriptFolder)
 		CpR(filepath.Join(fc.Context.Buildpack.Path, "common"), featureScriptBase)
 		// output an environment file that we can source later
@@ -180,6 +175,13 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	if !acquireExecuted && !configureExists {
 		return layer, nil
 	}
+
+	// Output feature config to layer
+	var featureBytes []byte
+	if featureBytes, err = json.Marshal(fc.Feature); err != nil {
+		log.Fatal("Failed to marshal feature config to json: ", err)
+	}
+	WriteFile(filepath.Join(featureScriptFolder, fc.Feature.Id+".json"), []byte(featureBytes))
 
 	// Add ID and option selections to layer metadata, add to LayerContributor
 	layer.Metadata = make(map[string]interface{})

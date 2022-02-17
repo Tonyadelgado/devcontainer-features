@@ -9,7 +9,6 @@ FEATURE_ID="$(basename "${FEATURE_PATH}")"
 
 set_var_to_option_value "${FEATURE_ID}" buildmode build_mode "devcontainer"
 set_var_to_option_value "${FEATURE_ID}" profile_d profile_d "/usr/local/etc/dev-container-features/profile.d"
-set_var_to_option_value "${FEATURE_ID}" exec_d exec_d "/usr/local/etc/dev-container-features/exec.d"
 set_var_to_option_value "${FEATURE_ID}" targetpath target_path "/usr/local"
 set_var_to_option_value "${FEATURE_ID}" version version "latest"
 set_var_to_option_value "${FEATURE_ID}" foo foo "latest"
@@ -22,10 +21,9 @@ if ! check_marker "${marker_path}" "${target_path}" "${version}" "${foo}" "${bui
 fi
 
 # Test out the profile.d interface
-mkdir -p "${profile_d}" "${exec_d}"
+mkdir -p "${profile_d}" /tmp/buildpack-test
 echo "export BUILDPACK_TEST_PROFILE_D_WORKED=true" > "${profile_d}/buildpack-test.sh"
-echo "echo 'BUILDPACK_TEST_EXEC_D_WORKED=true'" > "${exec_d}/buildpack-test.sh"
-chmod +x "${profile_d}/buildpack-test.sh" "${exec_d}/buildpack-test.sh"
+chmod +x "${profile_d}/buildpack-test.sh"
 
 mkdir -p "${target_path}"/bin
 cat << EOF > "${target_path}"/bin/foo
@@ -33,7 +31,6 @@ cat << EOF > "${target_path}"/bin/foo
 echo "Foo!! Foo is ${foo}"
 echo "Marker: \$(cat ${marker_path})"
 echo "BUILDPACK_TEST_PROFILE_D_WORKED=\${BUILDPACK_TEST_PROFILE_D_WORKED}"
-echo "BUILDPACK_TEST_EXEC_D_WORKED=\${BUILDPACK_TEST_EXEC_D_WORKED}"
 echo "TEST=\${TEST}"
 echo "TEST2=\${TEST2}"
 EOF

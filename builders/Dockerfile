@@ -75,6 +75,7 @@ RUN apt-get update \
         xz-utils \
         zlib1g-dev \
         jq \
+        shc \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/* \
     #
     # The build mode must be set in this file for devpacks to know which mode to run in.
