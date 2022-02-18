@@ -139,7 +139,6 @@ func detectOptionSelections(feature FeatureConfig, buildpackSettings DevpackSett
 	if GetContainerImageBuildMode() == "devcontainer" {
 		fullFeatureId := GetFullFeatureId(feature, buildpackSettings, "/")
 		for featureName, jsonOptionSelections := range devContainerJson.Features {
-			log.Println(featureName, "=", jsonOptionSelections)
 			if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
 				detectedDevContainerJson = true
 				if reflect.TypeOf(jsonOptionSelections).String() == "string" {

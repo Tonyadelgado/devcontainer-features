@@ -20,6 +20,7 @@ const FeaturesetMetadataId = MetadataIdPrefix + ".featureset"
 const FeaturesMetadataId = MetadataIdPrefix + ".features"
 const FeatureLayerMetadataId = MetadataIdPrefix + ".feature"
 const BuildModeMetadataId = MetadataIdPrefix + ".buildmode"
+const PostProcessingDoneMetadataId = FeaturesMetadataId + ".done"
 const OptionMetadataKeyPrefix = "option_"
 const BuildpackDirEnvVar = "CNB_BUILDPACK_DIR"
 const ContainerImageBuildModeEnvVarName = "BP_DCNB_BUILD_MODE"
@@ -92,6 +93,7 @@ type DevContainerJson struct {
 type LayerFeatureMetadata struct {
 	Id               string
 	Version          string
+	Config           FeatureConfig
 	OptionSelections map[string]string
 }
 

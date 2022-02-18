@@ -13,4 +13,5 @@ cd assets
     ${clear_cache_flag} \
     --pull-policy if-not-present \
     --builder ghcr.io/chuxel/devcontainer-features/builder-devcontainer-full \
-    --trust-builder
+    --trust-builder \
+    ${clear_cache_flag}

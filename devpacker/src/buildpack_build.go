@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -72,6 +71,7 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 
 	buildMode := GetContainerImageBuildMode()
 
+	// Add metadata on features and post processing needs
 	result.Labels = append(result.Labels, libcnb.Label{
 		Key:   BuildModeMetadataId,
 		Value: buildMode,
@@ -147,28 +147,28 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 		log.Fatal("Failed to execute acquire script for feature", fc.FullFeatureId(), ": ", err)
 	}
 
-	// Copy in devcontainer-feature.json for future reference
-	featureScriptBase := filepath.Join(layer.Path, DevContainerConfigSubfolder, "feature-config")
-	featureScriptFolder := filepath.Join(featureScriptBase, "features")
-	if err := os.MkdirAll(featureScriptFolder, 0777); err != nil {
-		log.Fatal("Could not create feature folder: ", err)
-	}
-
 	// Wire in configure script (if it exists) - we'll fire this in post processing
 	configureExists := false
 	configureScriptPath := GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, "configure")
 	if _, err := os.Stat(configureScriptPath); err == nil {
+		featureConfigBase := filepath.Join(layer.Path, DevContainerConfigSubfolder, "feature-config")
+		featuresBase := filepath.Join(featureConfigBase, "features")
+		featureConfigFolder := filepath.Join(featuresBase, fc.Feature.Id)
+		if err := os.MkdirAll(featureConfigFolder, 0777); err != nil {
+			log.Fatal("Could not create feature folder: ", err)
+		}
+
 		log.Println("Setting up configure script for post processing...")
 		configureExists = true
 		// Copy configure script into layer if it exists
-		CpR(filepath.Join(fc.Context.Buildpack.Path, "features", fc.Feature.Id), featureScriptFolder)
-		CpR(filepath.Join(fc.Context.Buildpack.Path, "common"), featureScriptBase)
+		CpR(filepath.Join(fc.Context.Buildpack.Path, "features", fc.Feature.Id), featuresBase)
+		CpR(filepath.Join(fc.Context.Buildpack.Path, "common"), featureConfigBase)
 		// output an environment file that we can source later
 		envFileContents := ""
 		for _, line := range env {
 			envFileContents += line + "\n"
 		}
-		WriteFile(filepath.Join(featureScriptFolder, fc.Feature.Id, "devcontainer-features.env"), []byte(envFileContents))
+		WriteFile(filepath.Join(featureConfigFolder, "devcontainer-features.env"), []byte(envFileContents))
 	}
 
 	// If there's nothing to do, exit
@@ -176,25 +176,19 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 		return layer, nil
 	}
 
-	// Output feature config to layer
-	var featureBytes []byte
-	if featureBytes, err = json.Marshal(fc.Feature); err != nil {
-		log.Fatal("Failed to marshal feature config to json: ", err)
-	}
-	WriteFile(filepath.Join(featureScriptFolder, fc.Feature.Id+".json"), []byte(featureBytes))
-
 	// Add ID and option selections to layer metadata, add to LayerContributor
 	layer.Metadata = make(map[string]interface{})
 	layer.Metadata[FeatureLayerMetadataId] = LayerFeatureMetadata{
 		Id:               fc.FullFeatureId(),
 		Version:          fc.DevpackSettings.Version,
+		Config:           fc.Feature,
 		OptionSelections: fc.OptionSelections,
 	}
 
-	// TODO: Process containerEnv? Results in dupes if something like PATH is updated, but can be needed in production mode.
-	//if fc.Feature.ContainerEnv != nil && len(fc.Feature.ContainerEnv) > 0 {
-	//	processContainerEnv(fc.Feature.ContainerEnv, layer)
-	//}
+	// TODO: Process containerEnv? Workaround: Do a build only layer with the vars, then post-process for run image by removing the env folder.
+	if fc.Feature.ContainerEnv != nil && len(fc.Feature.ContainerEnv) > 0 {
+		processContainerEnv(fc.Feature.ContainerEnv, layer)
+	}
 
 	// Finally, update layer types based on what was detected when created
 	layer.LayerTypes = fc.LayerTypes
