@@ -119,4 +119,4 @@ For the dev container builder, just change the builder image. To do this with an
 devpacker build test_image --trust-builder  --pull-policy if-not-present --builder ghcr.io/chuxel/devcontainer-features/builder-devcontainer-full
 ```
 
-This will tweak the image and output a modified `devcontainer.json.buildpack` file. You can rename this to `devcontainer.json` and open it up in Remote - Containers to finish post-processing.
+This will tweak the image and output a modified `devcontainer.json.devpack` file. You can rename this to `devcontainer.json` and open it up in Remote - Containers to finish post-processing.

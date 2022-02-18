@@ -7,32 +7,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/tailscale/hujson"
 	"gonum.org/v1/gonum/stat/combin"
 )
-
-const DefaultApiVersion = "0.7"
-const MetadataIdPrefix = "com.microsoft.devcontainer"
-const FeaturesetMetadataId = MetadataIdPrefix + ".featureset"
-const FeaturesMetadataId = MetadataIdPrefix + ".features"
-const FeatureLayerMetadataId = MetadataIdPrefix + ".feature"
-const BuildModeMetadataId = MetadataIdPrefix + ".buildmode"
-const PostProcessingDoneMetadataId = FeaturesMetadataId + ".done"
-const OptionMetadataKeyPrefix = "option_"
-const BuildpackDirEnvVar = "CNB_BUILDPACK_DIR"
-const ContainerImageBuildModeEnvVarName = "BP_DCNB_BUILD_MODE"
-const RemoveApplicationFolderOverrideEnvVarName = "BP_DCNB_OMIT_APP_DIR"
-const OptionSelectionEnvVarPrefix = "_BUILD_ARG_"
-const ProjectTomlOptionSelectionEnvVarPrefix = "BP_CONTAINER_FEATURE_"
-const DefaultContainerImageBuildMode = "production"
-const DevContainerConfigSubfolder = "/etc/dev-container-features"
-const ContainerImageBuildMarkerPath = "/usr/local/" + DevContainerConfigSubfolder + "/dcnb-build-mode"
-const DevpackSettingsFilename = "devpack-settings.json"
-const BuildModeDevContainerJsonSetting = "buildMode"
-const TargetPathDevContainerJsonSetting = "targetPath"
 
 var cachedContainerImageBuildMode = ""
 
@@ -72,6 +53,36 @@ type FeatureConfig struct {
 	BuildArg     string
 }
 
+func (fc *FeatureConfig) SetProperties(propertyMap map[string]interface{}) {
+	for property, value := range propertyMap {
+		if value != nil {
+			switch property {
+			case "Mounts":
+				out := []FeatureMount{}
+				inputInterfaceArray := value.([]map[string]interface{})
+				for _, value := range inputInterfaceArray {
+					obj := propertyMapToInterface(value, reflect.TypeOf(FeatureMount{})).(*FeatureMount)
+					out = append(out, *obj)
+				}
+				fc.Mounts = out
+			case "Options":
+				// Convert map[string]interface{} to map[string]FeatureOption
+				out := make(map[string]FeatureOption)
+				inputInterfaceMap := value.(map[string]interface{})
+				for key, value := range inputInterfaceMap {
+					valuePropertyMap := value.(map[string]interface{})
+					obj := propertyMapToInterface(valuePropertyMap, reflect.TypeOf(FeatureOption{})).(*FeatureOption)
+					out[key] = *obj
+				}
+				fc.Options = out
+			default:
+				field := reflect.ValueOf(fc).Elem().FieldByName(property)
+				setFieldValue(field, value)
+			}
+		}
+	}
+}
+
 type FeaturesJson struct {
 	Features []FeatureConfig
 }
@@ -95,6 +106,53 @@ type LayerFeatureMetadata struct {
 	Version          string
 	Config           FeatureConfig
 	OptionSelections map[string]string
+}
+
+func (lfm *LayerFeatureMetadata) SetProperties(propertyMap map[string]interface{}) {
+	for property, value := range propertyMap {
+		if value != nil {
+			if property == "Config" {
+				out := FeatureConfig{}
+				inputInterfaceMap := value.(map[string]interface{})
+				out.SetProperties(inputInterfaceMap)
+				lfm.Config = out
+			} else {
+				field := reflect.ValueOf(lfm).Elem().FieldByName(property)
+				setFieldValue(field, value)
+			}
+		}
+	}
+}
+
+func propertyMapToInterface(propertyMap map[string]interface{}, typ reflect.Type) interface{} {
+	objValue := reflect.New(typ)
+	objValueElem := objValue.Elem()
+	for key, value := range propertyMap {
+		field := objValueElem.FieldByName(key)
+		setFieldValue(field, value)
+	}
+	return objValue.Interface()
+}
+
+func setFieldValue(field reflect.Value, value interface{}) {
+	reflectValue := reflect.ValueOf(value)
+	reflectValueType := reflectValue.Type().Kind().String()
+	switch reflectValueType {
+	case "slice":
+		convertedSliceValue := reflect.MakeSlice(field.Type(), 0, reflectValue.Len())
+		for _, sliceItem := range value.([]interface{}) {
+			convertedSliceValue = reflect.Append(convertedSliceValue, reflect.ValueOf(sliceItem))
+		}
+		field.Set(convertedSliceValue)
+	case "map":
+		convertedMapValue := reflect.MakeMap(field.Type())
+		for key, value := range value.(map[string]interface{}) {
+			convertedMapValue.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(value))
+		}
+		field.Set(convertedMapValue)
+	default:
+		field.Set(reflectValue.Convert(field.Type()))
+	}
 }
 
 func LoadFeaturesJson(featuresPath string) FeaturesJson {

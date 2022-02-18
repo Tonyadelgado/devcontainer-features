@@ -1,1 +1,2 @@
-.devcontainer.json.buildpack
+.devcontainer.json.devpack
+.devcontainer/devcontainer.json.devpack

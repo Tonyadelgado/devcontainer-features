@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-# The install.sh script is the installation entrypoint for any features in this repository. 
+# The install.sh script is the installation entrypoint for any features in this repository when used directly (rather than via a Devpack). 
 DEV_CONTAINER_FEATURE_SMOKE_TEST="${1:-"${DEV_CONTAINER_FEATURE_SMOKE_TEST-false}"}"
 DEV_CONTAINER_CONFIG_DIR="/usr/local/etc/dev-container-features"
 DEV_CONTAINER_PROFILE_D="${DEV_CONTAINER_CONFIG_DIR}/profile.d"
@@ -66,7 +66,7 @@ conditional_install() {
     echo
 }
 
-# Inject profile.d/exec.d processing script into /etc/profile.d, /etc/bash.bashrc, /etc/zsh/zshrc
+# Inject profile.d processing script into /etc/profile.d, /etc/bash.bashrc, /etc/zsh/zshrc
 # for scenarios where they are used in a feature that is not installed via the buildpack.
 # This makes it compatible with the buildpack spec's support for the same idea. We could
 # in concept just adopt this as the approach for dev container features in general as well.
