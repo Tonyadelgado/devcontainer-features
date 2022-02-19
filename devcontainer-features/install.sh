@@ -4,6 +4,7 @@ set -e
 DEV_CONTAINER_FEATURE_SMOKE_TEST="${1:-"${DEV_CONTAINER_FEATURE_SMOKE_TEST-false}"}"
 DEV_CONTAINER_CONFIG_DIR="/usr/local/etc/dev-container-features"
 DEV_CONTAINER_PROFILE_D="${DEV_CONTAINER_CONFIG_DIR}/profile.d"
+DEV_CONTAINER_ENTRYPOINT_D="${DEV_CONTAINER_CONFIG_DIR}/entrypoint.d"
 DEV_CONTAINER_MARKERS="${DEV_CONTAINER_CONFIG_DIR}/markers"
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -44,6 +45,8 @@ conditional_install() {
     local feature_id_safe="$(echo "${feature_id}" | tr '[:lower:]' '[:upper:]' | tr '-' '_' )"
     profile_d_build_arg_name="_BUILD_ARG_${feature_id_safe}_PROFILE_D"
     declare -x ${profile_d_build_arg_name}="${DEV_CONTAINER_PROFILE_D}"
+    entrypoint_d_build_arg_name="_BUILD_ARG_${feature_id_safe}_ENTRYPOINT_D"
+    declare -x ${entrypoint_d_build_arg_name}="${DEV_CONTAINER_ENTRYPOINT_D}"
 
     # Always set build mode to devcontainer - buildpacks will also set this to an appropriate value
     build_mode_build_arg_name="_BUILD_ARG_${feature_id_safe}_BUILD_MODE"
@@ -84,8 +87,9 @@ add_env_boostrap_to_file() {
     fi
 }
 
-mkdir -p "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_MARKERS}"
-chown "${username}" "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_MARKERS}"
+mkdir -p "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_ENTRYPOINT_D}"  "${DEV_CONTAINER_MARKERS}"
+chown "${username}" "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_ENTRYPOINT_D}" "${DEV_CONTAINER_MARKERS}"
+# Add profile.d script
 if [ ! -e "${DEV_CONTAINER_CONFIG_DIR}/env-bootstrap.sh" ]; then
 cat << EOF > "${DEV_CONTAINER_CONFIG_DIR}/env-bootstrap.sh"
 if [ -z "\${DEV_CONTAINER_ENV_BOOSTRAP_DONE}" ] && [ -d "${DEV_CONTAINER_PROFILE_D}" ]; then
@@ -99,7 +103,26 @@ if [ -z "\${DEV_CONTAINER_ENV_BOOSTRAP_DONE}" ] && [ -d "${DEV_CONTAINER_PROFILE
 fi
 EOF
 fi
+chmod +x "${DEV_CONTAINER_CONFIG_DIR}/env-bootstrap.sh"
 symlink_if_ne "${DEV_CONTAINER_CONFIG_DIR}/env-bootstrap.sh" /etc/profile.d/9999-env-bootstrap.sh
+
+# Add entrypoint script
+if [ ! -e "${DEV_CONTAINER_CONFIG_DIR}/entrypoint-bootstrap.sh" ]; then
+cat << EOF > "${DEV_CONTAINER_CONFIG_DIR}/entrypoint-bootstrap.sh"
+#!/bin/bash
+if [ -z "\${DEV_CONTAINER_ENTRYPOINTS_DONE}" ] && [ -d "${DEV_CONTAINER_ENTRYPOINT_D}" ]; then
+    for entrypoint in "${DEV_CONTAINER_ENTRYPOINT_D}"/*; do
+        if [ -r "\${entrypoint}" ]; then
+            "\${entrypoint}"
+        fi
+    done
+    export DEV_CONTAINER_ENTRYPOINTS_DONE=true
+fi
+exec "\$@"
+EOF
+fi
+chmod +x "${DEV_CONTAINER_CONFIG_DIR}/entrypoint-bootstrap.sh"
+
 add_env_boostrap_to_file /etc/bash.bashrc
 add_env_boostrap_to_file /etc/zsh/zshrc /etc/zsh
 add_env_boostrap_to_file /etc/zsh/zprofile /etc/zsh

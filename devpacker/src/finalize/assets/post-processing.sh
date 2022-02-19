@@ -1,5 +1,11 @@
 #!/bin/bash
 set -e
+DEV_CONTAINER_CONFIG_RELATIVE_ROOT="/etc/dev-container-features"
+DEV_CONTAINER_PROFILE_D="${DEV_CONTAINER_CONFIG_RELATIVE_ROOT}/profile.d"
+DEV_CONTAINER_ENTRYPOINT_D="${DEV_CONTAINER_CONFIG_RELATIVE_ROOT}/entrypoint.d"
+COMMON_CONFIG_ROOT="/usr/local/${DEV_CONTAINER_CONFIG_RELATIVE_ROOT}"
+COMMON_ENTRYPOINT_D="/usr/local/${DEV_CONTAINER_CONFIG_RELATIVE_ROOT}/entrypoint.d"
+
 post_procesing_array=( "$@" )
 echo "To post process: $@"
 
@@ -37,24 +43,55 @@ add_to_top_of_file /etc/bash.bashrc
 add_to_top_of_file /etc/profile
 add_to_top_of_file /etc/zsh/zshenv /etc/zsh
 
+# Create common entrypoint location and script
+mkdir -p "${COMMON_ENTRYPOINT_D}"
+cat << EOF > "${COMMON_CONFIG_ROOT}/entrypoint-bootstrap.sh"
+#!/bin/bash
+if [ -z "\${DEV_CONTAINER_ENTRYPOINTS_DONE}" ] && [ -d "${COMMON_ENTRYPOINT_D}" ]; then
+    for entrypoint in "${COMMON_ENTRYPOINT_D}"/*; do
+        if [ -r "\${entrypoint}" ]; then
+            "\${entrypoint}"
+        fi
+    done
+    export DEV_CONTAINER_ENTRYPOINTS_DONE=true
+fi
+exec "\$@"
+EOF
+chmod +x "${COMMON_CONFIG_ROOT}/entrypoint-bootstrap.sh"
+
+# Do post-processing feature by feature
 for feature in ${post_procesing_array[@]}; do
     feature_id="${feature##*\/}"
     buildpack_folder_name="${feature%\/*}"
     buildpack_folder_name="${buildpack_folder_name//\//_}"
     feature_layer_path="${CNB_LAYERS_DIR:-/layers}/${buildpack_folder_name}/${feature_id}"
     feature_config_path="${feature_layer_path}/etc/dev-container-features/feature-config/features/${feature_id}"
+    feature_entrypoint_d="${feature_layer_path}/etc/dev-container-features/entrypoint.d"
 
-    echo "Processing: ${feature_config_path}"
+    echo "Processing: ${feature_layer_path}"
 
-    if [ -r "${feature_config_path}/bin/configure}" ]; then
+    # Execute "configure" scripts
+    configure_script_path="${feature_config_path}/bin/configure"
+    if [ -r "${configure_script_path}" ]; then
+        echo "- Executing ${configure_script_path}..."
         set -a
         . "${feature_config_path}/devcontainer-features.env"
         set +a
-        chmod +x "${feature_config_path}/bin/configure"
-        "${feature_config_path}/bin/configure"
+        chmod +x "${configure_script_path}"
+        "${configure_script_path}"
     fi
 
     # Remove env vars for features since this will result in duplicates after post-processing
     rm -rf "${feature_layer_path}/env" "${feature_layer_path}/etc/dev-container-features/feature-config"
-done
 
+    # Symlink entrypoint scripts
+    if [ -d "${feature_entrypoint_d}" ]; then
+        for entrypoint in "${feature_entrypoint_d}"/*; do
+            if [ -f "${entrypoint}" ]; then
+                echo "- Wiring up entrypoint ${entrypoint}..."
+                chmod +x "${entrypoint}"
+                ln -s "${entrypoint}" "${COMMON_ENTRYPOINT_D}/layer-${buildpack_folder_name}-${feature_id}-$(basename "${entrypoint}")"
+            fi
+        done
+    fi
+done

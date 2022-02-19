@@ -23,8 +23,10 @@ var buildScriptPayload []byte
 
 func Generate(featuresPath string, outputPath string) {
 	// Load features.json, buildpack settings
-	featuresJson := common.LoadFeaturesJson(featuresPath)
-	devpackSettings := common.LoadDevpackSettings(featuresPath)
+	devpackSettings := common.DevpackSettings{}
+	devpackSettings.Load(featuresPath)
+	featuresJson := common.FeaturesJson{}
+	featuresJson.Load(featuresPath)
 
 	// Copy core features content
 	os.MkdirAll(filepath.Join(outputPath, "bin"), 0755)

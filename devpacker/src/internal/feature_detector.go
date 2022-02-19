@@ -28,14 +28,16 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 	var result libcnb.DetectResult
 
 	// Load features.json, buildpack settings
-	devpackSettings := common.LoadDevpackSettings(context.Buildpack.Path)
-	featuresJson := common.LoadFeaturesJson(context.Buildpack.Path)
+	devpackSettings := common.DevpackSettings{}
+	devpackSettings.Load(context.Buildpack.Path)
+	featuresJson := common.FeaturesJson{}
+	featuresJson.Load(context.Buildpack.Path)
 	log.Println("Number of features in Devpack:", len(featuresJson.Features))
 
 	// Load devcontainer.json if in devcontainer build mode
 	var devContainerJson common.DevContainerJson
 	if common.GetContainerImageBuildMode() == "devcontainer" {
-		devContainerJson, _ = common.LoadDevContainerJson(context.Application.Path)
+		devContainerJson.Load(context.Application.Path)
 	}
 
 	// See if should provide any features
@@ -77,7 +79,7 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 
 func detectFeature(context libcnb.DetectContext, buildpackSettings common.DevpackSettings, feature common.FeatureConfig, devContainerJson common.DevContainerJson) (bool, libcnb.BuildPlanProvide, libcnb.BuildPlanRequire, error) {
 	// e.g. chuxel/devcontainer/features/packcli
-	fullFeatureId := common.GetFullFeatureId(feature, buildpackSettings, "/")
+	fullFeatureId := feature.FullFeatureId(buildpackSettings, "/")
 	provide := libcnb.BuildPlanProvide{Name: fullFeatureId}
 	require := libcnb.BuildPlanRequire{Name: fullFeatureId, Metadata: make(map[string]interface{})}
 
@@ -91,7 +93,7 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings common.Devpac
 	}
 
 	// Check if detect script for feature exists, return whatever the result of the devcontainer.json and env var detection happens to be
-	detectScriptPath := common.GetFeatureScriptPath(context.Buildpack.Path, feature.Id, "detect")
+	detectScriptPath := feature.ScriptPath(context.Buildpack.Path, "detect")
 	_, err := os.Stat(detectScriptPath)
 	if err != nil {
 		return detected, provide, require, nil
@@ -99,7 +101,7 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings common.Devpac
 
 	// Execute the script - set path to where a resulting devcontainer-features.env should be placed as env var
 	log.Printf("- Executing %s\n", detectScriptPath)
-	env := common.GetBuildEnvironment(feature, optionSelections, map[string]string{
+	env := feature.BuildEnvironment(optionSelections, map[string]string{
 		"SELECTION_ENV_FILE_PATH": DevContainerFeaturesEnvPath,
 	})
 	logWriter := log.Writer()
@@ -138,7 +140,7 @@ func detectOptionSelections(feature common.FeatureConfig, buildpackSettings comm
 	detectedDevContainerJson := false
 	// If in dev container mode, parse devcontainer.json features (if any)
 	if common.GetContainerImageBuildMode() == "devcontainer" {
-		fullFeatureId := common.GetFullFeatureId(feature, buildpackSettings, "/")
+		fullFeatureId := feature.FullFeatureId(buildpackSettings, "/")
 		for featureName, jsonOptionSelections := range devContainerJson.Features {
 			if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
 				detectedDevContainerJson = true
@@ -163,16 +165,15 @@ func detectOptionSelections(feature common.FeatureConfig, buildpackSettings comm
 
 func mergeOptionSelectionsFromEnv(feature common.FeatureConfig, optionSelections map[string]string, prefix string) (bool, map[string]string) {
 	detected := false
-	enabledEnvVarVal := os.Getenv(common.GetOptionEnvVarName(prefix, feature.Id, ""))
+	enabledEnvVarVal := os.Getenv(feature.OptionEnvVarName(prefix, ""))
 	if enabledEnvVarVal != "" && enabledEnvVarVal != "false" {
 		detected = true
 	}
 	for optionId := range feature.Options {
-		optionValue := os.Getenv(common.GetOptionEnvVarName(prefix, feature.Id, optionId))
+		optionValue := os.Getenv(feature.OptionEnvVarName(prefix, optionId))
 		if optionValue != "" {
 			optionSelections[optionId] = optionValue
 		}
 	}
-	log.Println(optionSelections)
 	return detected, optionSelections
 }

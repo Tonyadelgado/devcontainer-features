@@ -1,13 +1,11 @@
 package finalize
 
 import (
-	"bytes"
 	_ "embed"
 	"encoding/json"
 	"log"
 	"math/rand"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,16 +14,26 @@ import (
 	"github.com/chuxel/devpacker-features/devpacker/common"
 )
 
-const labelMetadataTemplate = "{\"lifecycle\": {{ index .Config.Labels \"" + platform.LayerMetadataLabel + "\" }} , \"buildmode\": \"{{ index .Config.Labels \"" + common.BuildModeMetadataId + "\" }}\" , \"done\": \"{{ index .Config.Labels \"" + common.PostProcessingDoneMetadataId + "\" }}\" }"
+const labelMetadataTemplate = "{\"layers\": {{ index .Config.Labels \"" + platform.LayerMetadataLabel + "\" }} , \"buildmode\": \"{{ index .Config.Labels \"" + common.BuildModeMetadataId + "\" }}\" , \"done\": \"{{ index .Config.Labels \"" + common.PostProcessingDoneMetadataId + "\" }}\" , \"entrypoint\": {{ json .Config.Entrypoint }} }"
 
 type LabelBuldpackLayer struct {
 	Data map[string]json.RawMessage
 }
 
-type PostProcessingMetadata struct {
-	BuildMode          string                        `json:"buildmode"`
-	PostProcessingDone string                        `json:"done"`
-	Lifecycle          platform.LayersMetadataCompat `json:"lifecycle"`
+type DockerImageMetadata struct {
+	BuildMode     string                        `json:"buildmode"`
+	AlreadyDone   string                        `json:"done"`
+	LayerMetadata platform.LayersMetadataCompat `json:"layers"`
+	Entrypoint    []string                      `json:"entrypoint"`
+}
+
+type PostProcessingConfig struct {
+	Image                string
+	ApplicationFolder    string
+	BuildMode            string
+	AlreadyDone          string
+	LayerFeatureMetadata map[string]common.LayerFeatureMetadata
+	Entrypoint           []string
 }
 
 //go:embed assets/post-processing.sh
@@ -39,29 +47,31 @@ func FinalizeImage(imageToFinalize string, buildModeOverride string, application
 	log.Println("Application folder:", applicationFolder)
 
 	// Get needed metadata from image label
-	layerFeatureMetadataMap, buildMode, postProcessingDone := getImageFeatureMetadata(imageToFinalize, buildModeOverride)
-	log.Println("Image build mode:", buildMode)
+	postProcessingConfig := newPostProcessingConfig(imageToFinalize, buildModeOverride, applicationFolder)
+	log.Println("Image build mode:", postProcessingConfig.BuildMode)
 
 	// Execute post processing where required
-	log.Println("Starting post processing. Already complete for: ", postProcessingDone)
-	executePostProcessing(imageToFinalize, postProcessingDone, layerFeatureMetadataMap)
+	log.Println("Starting post processing. Already complete for: ", postProcessingConfig.AlreadyDone)
+	executePostProcessing(postProcessingConfig)
 
 	// Create devcontainer.json and finalizer feature
-	createDevContainerJson(imageToFinalize, layerFeatureMetadataMap, buildMode, applicationFolder)
+	createDevContainerJson(postProcessingConfig)
 
-	//log.Println("Calling devcontainer CLI to add remaining container features to image.")
-	//devContainerImageBuild(imageToFinalize, targetDevContainerJsonPath, devContainerJsonPath)
+	/* TODO: Chain call to devcontainer CLI when it works without pulling an image
+	log.Println("Calling devcontainer CLI to add remaining container features to image.")
+	devContainerImageBuild(imageToFinalize, targetDevContainerJsonPath, devContainerJsonPath)
+	*/
 }
 
-func createDevContainerJson(imageToFinalize string, layerFeatureMetadataMap map[string]common.LayerFeatureMetadata, buildMode string, applicationFolder string) {
+func createDevContainerJson(postProcessingConfig PostProcessingConfig) {
 	// Get devcontainer.json as a map so we don't change any fields unexpectedly
 	devContainerJsonMap := make(map[string]json.RawMessage)
 	featureOptionSelections := make(map[string]interface{})
 	var devContainerJsonPath string
 	// Only load the existing devcontainer.json file if we're in the devcontainer context
-	if buildMode == "devcontainer" {
+	if postProcessingConfig.BuildMode == "devcontainer" {
 		log.Println("Loading devcontainer.json if present.")
-		devContainerJsonMap, devContainerJsonPath = common.LoadDevContainerJsonAsMap(applicationFolder)
+		devContainerJsonMap, devContainerJsonPath = common.LoadDevContainerJsonAsMap(postProcessingConfig.ApplicationFolder)
 		if devContainerJsonPath != "" {
 			// Un-marshall devcontainer.json features into a map
 			if err := json.Unmarshal(devContainerJsonMap["features"], &featureOptionSelections); err != nil {
@@ -69,22 +79,22 @@ func createDevContainerJson(imageToFinalize string, layerFeatureMetadataMap map[
 			}
 		}
 	} else {
-		log.Println("Skipping devcontainer.json load since build mode is", buildMode)
-		devContainerJsonPath = common.FindDevContainerJson(applicationFolder)
+		log.Println("Skipping devcontainer.json load since build mode is", postProcessingConfig.BuildMode)
+		devContainerJsonPath = common.FindDevContainerJson(postProcessingConfig.ApplicationFolder)
 	}
 
 	// Remove any features from the in-bound devcontainer.json that we've already processed
 	// remaining steps will be covered by the finalizer feature we'll generate next
 	for featureId := range featureOptionSelections {
-		if _, hasKey := layerFeatureMetadataMap[featureId]; hasKey || strings.HasPrefix(layerFeatureMetadataMap[featureId].Id, featureId+"@") {
+		if _, hasKey := postProcessingConfig.LayerFeatureMetadata[featureId]; hasKey || strings.HasPrefix(postProcessingConfig.LayerFeatureMetadata[featureId].Id, featureId+"@") {
 			delete(featureOptionSelections, featureId)
 		}
 	}
 
 	// Determine and create target folder paths
-	targetFolder := applicationFolder
+	targetFolder := postProcessingConfig.ApplicationFolder
 	if devContainerJsonPath == "" {
-		targetFolder = filepath.Join(applicationFolder, ".devcontainer")
+		targetFolder = filepath.Join(postProcessingConfig.ApplicationFolder, ".devcontainer")
 		devContainerJsonPath = filepath.Join(targetFolder, "devcontainer.json")
 		if err := os.MkdirAll(targetFolder, 0755); err != nil {
 			log.Fatal("Failed to create target folder: ", err)
@@ -93,8 +103,8 @@ func createDevContainerJson(imageToFinalize string, layerFeatureMetadataMap map[
 		//targetFolder = filepath.Dir(devContainerJsonPath)
 	}
 
-	// Work around lack of local dev container feature reference support
-	devContainerJsonMap = mergeFeatureConfigToDevContainerJson(devContainerJsonMap, layerFeatureMetadataMap)
+	// TODO: Use a feature instead of devcontainer.json merge once you can reference a local feature
+	devContainerJsonMap = mergeFeatureConfigToDevContainerJson(postProcessingConfig, devContainerJsonMap)
 
 	/* TODO: Use a feature instead of devcontainer.json merge once you can reference a local feature
 
@@ -120,7 +130,7 @@ func createDevContainerJson(imageToFinalize string, layerFeatureMetadataMap map[
 		log.Fatal("Failed to marshal devContainerJsonFeatureMap to json.RawMessage: ", err)
 	}
 	devContainerJsonMap["features"] = featureRawMessage
-	devContainerJsonMap["image"] = common.ToJsonRawMessage(imageToFinalize)
+	devContainerJsonMap["image"] = common.ToJsonRawMessage(postProcessingConfig.Image)
 	devContainerJsonMap["userEnvProbe"] = common.ToJsonRawMessage("loginInteractiveShell")
 	delete(devContainerJsonMap, "build")
 	delete(devContainerJsonMap, "dockerComposeFile")
@@ -137,10 +147,10 @@ func createDevContainerJson(imageToFinalize string, layerFeatureMetadataMap map[
 	}
 }
 
-func generateFinalizeFeatureConfig(layerFeatureMetadataMap map[string]common.LayerFeatureMetadata) common.FeatureConfig {
+func generateFinalizeFeatureConfig(postProcessingConfig PostProcessingConfig) common.FeatureConfig {
 	finalizeFeatureConfig := common.FeatureConfig{Id: "finalize"}
 	// Merge in remaining config from features already in the image
-	for _, layerFeatureMetadata := range layerFeatureMetadataMap {
+	for _, layerFeatureMetadata := range postProcessingConfig.LayerFeatureMetadata {
 		// Merge flags
 		finalizeFeatureConfig.Privileged = finalizeFeatureConfig.Privileged || layerFeatureMetadata.Config.Privileged
 		finalizeFeatureConfig.Init = finalizeFeatureConfig.Init || layerFeatureMetadata.Config.Init
@@ -178,7 +188,7 @@ func generateFinalizeFeatureConfig(layerFeatureMetadataMap map[string]common.Lay
 	return finalizeFeatureConfig
 }
 
-func executePostProcessing(imageToFinalize string, postProcessingDone string, layerFeatureMetadataMap map[string]common.LayerFeatureMetadata) {
+func executePostProcessing(postProcessingConfig PostProcessingConfig) {
 	var err error
 	tempDir := filepath.Join(os.TempDir(), strconv.FormatInt(rand.Int63(), 36))
 	if err = os.MkdirAll(tempDir, 0777); err != nil {
@@ -193,12 +203,12 @@ func executePostProcessing(imageToFinalize string, postProcessingDone string, la
 	// Append any needed post-processing steps to dockerfile
 	postProcessingDockerfileModified := postProcessingDockerfile
 	postProcessingRequired := ""
-	postProcessingChecker := " " + postProcessingDone + " "
-	for featureId, layerFeatureMetadata := range layerFeatureMetadataMap {
+	postProcessingChecker := " " + postProcessingConfig.AlreadyDone + " "
+	for featureId, layerFeatureMetadata := range postProcessingConfig.LayerFeatureMetadata {
 		postProcessingFeatureString := " " + featureId + " "
 		if !strings.Contains(postProcessingChecker, postProcessingFeatureString) {
 			postProcessingRequired += featureId + " "
-			postProcessingDone += featureId + " "
+			postProcessingConfig.AlreadyDone += featureId + " "
 			// Apply post processing for containerEnv
 			for varName, varValue := range layerFeatureMetadata.Config.ContainerEnv {
 				envVarSnippet := "\nENV " + varName + "=" + varValue
@@ -206,68 +216,69 @@ func executePostProcessing(imageToFinalize string, postProcessingDone string, la
 			}
 		}
 	}
+	postProcessingConfig.AlreadyDone = strings.TrimSpace(postProcessingConfig.AlreadyDone)
+
+	// Append update entrypoint in Dockerfile if required
+	if !common.SliceContainsString(postProcessingConfig.Entrypoint, common.CommonEntrypointDBootstrapPath) {
+		postProcessingDockerfileModified = append(postProcessingDockerfileModified, []byte("\n\nENTRYPOINT [\""+common.CommonEntrypointDBootstrapPath+"\"")...)
+		for _, argument := range postProcessingConfig.Entrypoint {
+			argument = strings.ReplaceAll(argument, "\"", "\\\"")
+			postProcessingDockerfileModified = append(postProcessingDockerfileModified, []byte(",\""+argument+"\"")...)
+		}
+		postProcessingDockerfileModified = append(postProcessingDockerfileModified, []byte("]")...)
+	}
+
+	log.Println("**DEBUG**", string(postProcessingDockerfileModified))
+
 	dockerFilePath := filepath.Join(tempDir, "Dockerfile")
 	if err = common.WriteFile(dockerFilePath, postProcessingDockerfileModified); err != nil {
 		log.Fatal("Failed to write Dockerfile: ", err)
 	}
 
-	dockerCli(tempDir, false, "build", "--no-cache", "--build-arg", "IMAGE_NAME="+imageToFinalize, "--build-arg", "POST_PROCESSING_REQUIRED="+postProcessingRequired, "--build-arg", "POST_PROCESSING_DONE="+strings.TrimSpace(postProcessingDone), "-t", imageToFinalize, "-f", dockerFilePath, ".")
+	common.DockerCli(tempDir, false, "build",
+		"--no-cache",
+		"--build-arg", "IMAGE_NAME="+postProcessingConfig.Image,
+		"--build-arg", "POST_PROCESSING_REQUIRED="+postProcessingRequired,
+		"--build-arg", "POST_PROCESSING_DONE="+postProcessingConfig.AlreadyDone,
+		"-t", postProcessingConfig.Image,
+		"-f", dockerFilePath, ".")
+
 	if err = os.RemoveAll(tempDir); err != nil {
 		log.Fatal("Failed to remove temp directory: ", err)
 	}
 }
 
-func dockerCli(workingDir string, captureOutput bool, args ...string) []byte {
-	var outputBytes bytes.Buffer
-	var errorOutput bytes.Buffer
-
-	dockerCommand := exec.Command("docker", args...)
-	dockerCommand.Env = os.Environ()
-	if captureOutput {
-		dockerCommand.Stdout = &outputBytes
-		dockerCommand.Stderr = &errorOutput
-	} else {
-		writer := log.Writer()
-		dockerCommand.Stdout = writer
-		dockerCommand.Stderr = writer
-	}
-	if workingDir != "" {
-		dockerCommand.Dir = workingDir
-	}
-	commandErr := dockerCommand.Run()
-	if commandErr != nil || dockerCommand.ProcessState.ExitCode() != 0 || errorOutput.Len() != 0 {
-		log.Fatal("Docker command failed: " + errorOutput.String() + commandErr.Error())
-	}
-	return outputBytes.Bytes()
-}
-
-// Inspect the specified image to get any feature config set on a label
-func getImageFeatureMetadata(imageToFinalize string, buildModeOverride string) (map[string]common.LayerFeatureMetadata, string, string) {
-	var labelMetadata PostProcessingMetadata
-
+// Inspect the specified image and create a new instance of PostProcessingConfig
+func newPostProcessingConfig(imageToFinalize string, buildModeOverride string, applicationFolder string) PostProcessingConfig {
 	// Use docker inspect to get metadata
-	labelJsonBytes := dockerCli("", true, "image", "inspect", imageToFinalize, "-f", labelMetadataTemplate)
-
-	// Parse contents
-	if len(labelJsonBytes) > 0 && string(labelJsonBytes) != "" {
-		if err := json.Unmarshal(labelJsonBytes, &labelMetadata); err != nil {
+	var dockerImageMetadata DockerImageMetadata
+	inspectJsonBytes := common.DockerCli("", true, "image", "inspect", imageToFinalize, "-f", labelMetadataTemplate)
+	if len(inspectJsonBytes) > 0 && string(inspectJsonBytes) != "" {
+		if err := json.Unmarshal(inspectJsonBytes, &dockerImageMetadata); err != nil {
 			log.Println("Unable to process feature metadata in image. Assuming no post processing is required.")
 		}
 	}
 
+	postProcessingConfig := PostProcessingConfig{
+		Image:             imageToFinalize,
+		BuildMode:         dockerImageMetadata.BuildMode,
+		AlreadyDone:       dockerImageMetadata.AlreadyDone,
+		ApplicationFolder: applicationFolder,
+		Entrypoint:        dockerImageMetadata.Entrypoint,
+	}
+
 	// Set build mode
-	buildMode := labelMetadata.BuildMode
 	if buildModeOverride != "" {
-		buildMode = buildModeOverride
-	} else if labelMetadata.BuildMode == "" {
+		postProcessingConfig.BuildMode = buildModeOverride
+	} else if dockerImageMetadata.BuildMode == "" {
 		// If no override, and we didn't get a value off of the image, then use the default
-		buildMode = common.DefaultContainerImageBuildMode
+		postProcessingConfig.BuildMode = common.DefaultContainerImageBuildMode
 	}
 
 	// Convert feature metadata to map of LayerFeatureMetadata structs
-	featureMetadataMap := make(map[string]common.LayerFeatureMetadata)
-	if labelMetadata.Lifecycle.Buildpacks != nil {
-		for _, buildpackMetadata := range labelMetadata.Lifecycle.Buildpacks {
+	postProcessingConfig.LayerFeatureMetadata = make(map[string]common.LayerFeatureMetadata)
+	if dockerImageMetadata.LayerMetadata.Buildpacks != nil {
+		for _, buildpackMetadata := range dockerImageMetadata.LayerMetadata.Buildpacks {
 			for _, buildpackLayerMetadata := range buildpackMetadata.Layers {
 				if buildpackLayerMetadata.Data != nil {
 					// Cast so we can use it
@@ -276,7 +287,7 @@ func getImageFeatureMetadata(imageToFinalize string, buildModeOverride string) (
 						// Convert interface to struct
 						featureMetadata := common.LayerFeatureMetadata{}
 						featureMetadata.SetProperties(data[common.FeatureLayerMetadataId].(map[string]interface{}))
-						featureMetadataMap[featureMetadata.Id] = featureMetadata
+						postProcessingConfig.LayerFeatureMetadata[featureMetadata.Id] = featureMetadata
 					}
 
 				}
@@ -284,8 +295,10 @@ func getImageFeatureMetadata(imageToFinalize string, buildModeOverride string) (
 		}
 	}
 
-	return featureMetadataMap, buildMode, labelMetadata.PostProcessingDone
+	return postProcessingConfig
 }
+
+/* TODO: Uncomment once you can use the devcontainer CI without pulling an image
 
 func devContainerImageBuild(imageToFinalize string, tempDevContainerJsonPath string, originalDevContainerJsonPath string) {
 	workingDir := filepath.Dir(tempDevContainerJsonPath)
@@ -320,3 +333,4 @@ func devContainerImageBuild(imageToFinalize string, tempDevContainerJsonPath str
 		log.Fatal("Failed to build using devcontainer CLI: " + commandErr.Error())
 	}
 }
+*/

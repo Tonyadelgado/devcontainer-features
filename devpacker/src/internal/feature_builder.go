@@ -34,16 +34,20 @@ type FeatureLayerContributor struct {
 
 // Implementation of libcnb.Builder.Build
 func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
+	buildMode := common.GetContainerImageBuildMode()
 	log.Println("Devpack path:", context.Buildpack.Path)
 	log.Println("Application path:", context.Application.Path)
+	log.Println("Build mode:", buildMode)
 	log.Println("Number of plan entries:", len(context.Plan.Entries))
 	log.Println("Env:", os.Environ())
 
 	var result libcnb.BuildResult
 
 	// Load devcontainer.json, features.json, buildpack settings
-	devpackSettings := common.LoadDevpackSettings(context.Buildpack.Path)
-	featuresJson := common.LoadFeaturesJson(context.Buildpack.Path)
+	devpackSettings := common.DevpackSettings{}
+	devpackSettings.Load(context.Buildpack.Path)
+	featuresJson := common.FeaturesJson{}
+	featuresJson.Load(context.Buildpack.Path)
 	log.Println("Number of features in Devpack:", len(featuresJson.Features))
 
 	// Process each feature if it is in the buildpack plan in the order they appear in features.json
@@ -70,8 +74,6 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	}
 	log.Printf("Number of layer contributors: %d", len(result.Layers))
 	log.Printf("Unmet entries: %d", len(result.Unmet))
-
-	buildMode := common.GetContainerImageBuildMode()
 
 	// Add metadata on features and post processing needs
 	result.Labels = append(result.Labels, libcnb.Label{
@@ -115,7 +117,7 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 
 func (fc FeatureLayerContributor) FullFeatureId() string {
 	// e.g. chuxel-devcontainer-features-packcli
-	return common.GetFullFeatureId(fc.Feature, fc.DevpackSettings, "/")
+	return fc.Feature.FullFeatureId(fc.DevpackSettings, "/")
 }
 
 // Implementation of libcnb.LayerContributor.Name
@@ -128,7 +130,7 @@ func (fc FeatureLayerContributor) Name() string {
 func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 	var err error
 	// Check if acquire script for feature exists, exit otherwise
-	acquireScriptPath := common.GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, "acquire")
+	acquireScriptPath := fc.Feature.ScriptPath(fc.Context.Buildpack.Path, "acquire")
 	_, err = os.Stat(acquireScriptPath)
 	if err != nil {
 		log.Printf("- Skipping feature %s. No acquire script.", fc.FullFeatureId())
@@ -138,9 +140,9 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	// Always set targetPath to the layer path we were handed
 	fc.OptionSelections["targetPath"] = layer.Path
 	// Get build environment based on set options
-	env := common.GetBuildEnvironment(fc.Feature, fc.OptionSelections, map[string]string{
+	env := fc.Feature.BuildEnvironment(fc.OptionSelections, map[string]string{
 		"PROFILE_D":    filepath.Join(layer.Path, "profile.d"),
-		"ENTRYPOINT_D": filepath.Join(layer.Path, "entrypoint.d"),
+		"ENTRYPOINT_D": filepath.Join(layer.Path, common.DevContainerEntrypointD),
 	})
 
 	// Run acquire script (if it exists)
@@ -151,9 +153,9 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 
 	// Wire in configure script (if it exists) - we'll fire this in post processing
 	configureExists := false
-	configureScriptPath := common.GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, "configure")
+	configureScriptPath := fc.Feature.ScriptPath(fc.Context.Buildpack.Path, "configure")
 	if _, err := os.Stat(configureScriptPath); err == nil {
-		featureConfigBase := filepath.Join(layer.Path, common.DevContainerConfigSubfolder, "feature-config")
+		featureConfigBase := filepath.Join(layer.Path, common.DevContainerFeatureConfigSubfolder)
 		featuresBase := filepath.Join(featureConfigBase, "features")
 		featureConfigFolder := filepath.Join(featuresBase, fc.Feature.Id)
 		if err := os.MkdirAll(featureConfigFolder, 0777); err != nil {
@@ -292,7 +294,7 @@ func processEnvVar(name string, value string, envVars map[string]string) (string
 }
 
 func (fc FeatureLayerContributor) executeFeatureScript(scriptName string, env []string) (bool, error) {
-	scriptPath := common.GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, scriptName)
+	scriptPath := fc.Feature.ScriptPath(fc.Context.Buildpack.Path, scriptName)
 	if _, err := os.Stat(scriptPath); err != nil {
 		log.Printf("- Skipping feature %s. No acquire script.", fc.FullFeatureId())
 		return false, nil

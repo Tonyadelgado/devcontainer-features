@@ -9,6 +9,7 @@ FEATURE_ID="$(basename "${FEATURE_PATH}")"
 
 set_var_to_option_value "${FEATURE_ID}" buildmode build_mode "devcontainer"
 set_var_to_option_value "${FEATURE_ID}" profile_d profile_d "/usr/local/etc/dev-container-features/profile.d"
+set_var_to_option_value "${FEATURE_ID}" entrypoint_d entrypoint_d "/usr/local/etc/dev-container-features/entrypoint.d"
 set_var_to_option_value "${FEATURE_ID}" targetpath target_path "/usr/local"
 set_var_to_option_value "${FEATURE_ID}" version version "latest"
 set_var_to_option_value "${FEATURE_ID}" foo foo "latest"
@@ -21,9 +22,14 @@ if ! check_marker "${marker_path}" "${target_path}" "${version}" "${foo}" "${bui
 fi
 
 # Test out the profile.d interface
-mkdir -p "${profile_d}" /tmp/buildpack-test
+mkdir -p "${profile_d}"
 echo "export BUILDPACK_TEST_PROFILE_D_WORKED=true" > "${profile_d}/buildpack-test.sh"
 chmod +x "${profile_d}/buildpack-test.sh"
+
+# Test out the entrypoint.d interface
+mkdir -p "${entrypoint_d}"
+echo "date > /tmp/start.log" > "${entrypoint_d}/entrypoint-test.sh"
+chmod +x "${entrypoint_d}/entrypoint-test.sh"
 
 mkdir -p "${target_path}"/bin
 cat << EOF > "${target_path}"/bin/foo

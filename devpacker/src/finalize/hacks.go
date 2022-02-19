@@ -11,8 +11,8 @@ import (
   Work around the fact that local file features are not yet implemented by mapping into devcontainer.json
   and there are properties in features.json missing from devcontainer.json
 **/
-func mergeFeatureConfigToDevContainerJson(devContainerJsonMap map[string]json.RawMessage, layerFeatureMetadataMap map[string]common.LayerFeatureMetadata) map[string]json.RawMessage {
-	finalizeFeatureConfig := generateFinalizeFeatureConfig(layerFeatureMetadataMap)
+func mergeFeatureConfigToDevContainerJson(postProcessingConfig PostProcessingConfig, devContainerJsonMap map[string]json.RawMessage) map[string]json.RawMessage {
+	finalizeFeatureConfig := generateFinalizeFeatureConfig(postProcessingConfig)
 	var runArgs []string
 	if devContainerJsonMap["runArgs"] != nil {
 		if err := json.Unmarshal(devContainerJsonMap["runArgs"], &runArgs); err != nil {
