@@ -33,21 +33,22 @@ jobs:
       - name: Package and publish devpack images
         run: |
           export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
-          bash scripts/build-and-publish-all.sh GHCR_TOKEN "${{ github.actor }}"
-
-      - name: Prep output locations
-        run: |
-          mkdir -p out/features
-          cp -rft out/features common features install.sh devcontainer-features.json LICENSE.txt README.md
-          mv ./devpacker/out/* ./
-
+          bash scripts/publish-all.sh GHCR_TOKEN "${{ github.actor }}"
+          
       - name: Package dev container features
         uses: microsoft/publish-dev-container-features-action@main
         with:
-          path-to-features: 'out/features'
+          path-to-features: 'devcontainer-features'
+
+      - name: Prep output locations
+        run: |
+          mkdir -p dist/
+          mv ./devpacker/out/* ./dist
+          mv ./devcontainer-features/*.tgz ./dist
 
       - name: Create checksums for files
         run: |
+          cd dist
           sha256sum \
             ./devcontainer-features.tgz \
             ./devpacker-windows.zip \
@@ -59,9 +60,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ./devcontainer-features.tgz
-            ./devpacker-windows.zip
-            ./devpacker-darwin.tgz
-            ./devpacker-linux.tgz
-            ./SHASUMS256.txt
+            ./dist/devcontainer-features.tgz
+            ./dist/devpacker-windows.zip
+            ./dist/devpacker-darwin.tgz
+            ./dist/devpacker-linux.tgz
+            ./dist/SHASUMS256.txt
 

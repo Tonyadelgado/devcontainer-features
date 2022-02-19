@@ -1,20 +1,21 @@
 #!/bin/bash
 set -e
-cd "$(dirname "${BASH_SOURCE[0]}")"/..
 export DOCKER_BUILDKIT=1
 publish="${1:-false}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+devcontainer_features_dir="${script_dir}/../devcontainer-features"
+devpacker_dir="${script_dir}/../devpacker"
 
-# Create and package devpack
-publisher="$(jq -r '.publisher' devpack-settings.json)"
-featureset_name="$(jq -r '.featureSet' devpack-settings.json)"
-version="$(jq -r '.version' devpack-settings.json)"
+publisher="$(jq -r '.publisher' "${devcontainer_features_dir}"/devpack-settings.json)"
+featureset_name="$(jq -r '.featureSet' "${devcontainer_features_dir}"/devpack-settings.json)"
+version="$(jq -r '.version' "${devcontainer_features_dir}"/devpack-settings.json)"
 uri="ghcr.io/${publisher}/${featureset_name}/devpack:${version}"
 
-./devpacker/scripts/compile.sh false
+"${devpacker_dir}"/scripts/compile.sh false
 
 echo "(*) Generating devpack from dev container features..."
 mkdir -p /tmp/buildpack-out
-./devpacker/devpacker generate "." /tmp/buildpack-out
+"${devpacker_dir}"/devpacker generate "${devcontainer_features_dir}" /tmp/buildpack-out
 
 echo "(*) Packaging devpack as ${uri}..."
 cd /tmp/buildpack-out

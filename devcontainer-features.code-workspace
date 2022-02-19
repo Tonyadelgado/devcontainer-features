@@ -11,10 +11,7 @@
 			"path": "builders"
 		},
 		{
-			"path": "features"
-		},
-		{
-			"path": "common"
+			"path": "devcontainer-features"
 		},
 		{
 			"path": "prodpacks"

@@ -1,19 +1,20 @@
 #!/bin/bash
 set -e
-cd "$(dirname "${BASH_SOURCE[0]}")"
 export DOCKER_BUILDKIT=1
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+devcontainer_features_dir="${script_dir}/../devcontainer-features"
 builder_name="${1:-"empty"}"
 publish="${2:-false}"
 
-publisher="$(jq -r '.publisher' ../devpack-settings.json)"
-featureset="$(jq -r '.featureSet' ../devpack-settings.json)"
-version="$(jq -r '.version' ../devpack-settings.json)"
+publisher="$(jq -r '.publisher' "${devcontainer_features_dir}"/devpack-settings.json)"
+featureset_name="$(jq -r '.featureSet' "${devcontainer_features_dir}"/devpack-settings.json)"
+version="$(jq -r '.version' "${devcontainer_features_dir}"/devpack-settings.json)"
 
 mkdir -p /tmp/builder-tmp
 
 create_builder() {
     local builder_type=$1
-    local toml_dir="$(pwd)/${builder_name}"
+    local toml_dir="${script_dir}/${builder_name}"
     local toml="$(cat "${toml_dir}/builder-${builder_type}.toml")"
     toml="${toml//\${publisher\}/${publisher}}"
     toml="${toml//\${featureset\}/${featureset}}"

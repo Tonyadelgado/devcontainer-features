@@ -1,25 +1,29 @@
 #!/bin/bash
 set -e
 export DOCKER_BUILDKIT=1
-cd "$(dirname "${BASH_SOURCE[0]}")"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+devcontainer_features_dir="${script_dir}/../devcontainer-features"
 publish="${1:-false}"
 
-publisher="$(jq -r '.publisher' ../devpack-settings.json)"
-featureset_name="$(jq -r '.featureSet' ../devpack-settings.json)"
-version="$(jq -r '.version' ../devpack-settings.json)"
+publisher="$(jq -r '.publisher' "${devcontainer_features_dir}"/devpack-settings.json)"
+featureset_name="$(jq -r '.featureSet' "${devcontainer_features_dir}"/devpack-settings.json)"
+version="$(jq -r '.version' "${devcontainer_features_dir}"/devpack-settings.json)"
 uri_prefix="ghcr.io/${publisher}/${featureset_name}"
 
-# Create two stacks - normal, devcontainer
-echo "(*) Creating Stack images..."
-docker build -t "${uri_prefix}/stack-build-image" --cache-from "${uri_prefix}/stack-build-image" --target build .
-docker build -t "${uri_prefix}/stack-run-image" --cache-from "${uri_prefix}/stack-run-image" --target run .
-docker build -t "${uri_prefix}/stack-devcontainer-build-image" --cache-from "${uri_prefix}/stack-devcontainer-build-image" --target devcontainer-build .
-docker build -t "${uri_prefix}/stack-devcontainer-run-image" --cache-from "${uri_prefix}/stack-devcontainer-run-image" --target devcontainer-run .
+build_stack_images() {
+    prefix=""
+    if [ ! -z "${1}" ]; then
+        prefix="${1}-"
+    fi
+    docker build -t "${uri_prefix}/stack-${prefix}build-image" --cache-from "${uri_prefix}/stack-${prefix}build-image" --target ${prefix}build .
+    docker build -t "${uri_prefix}/stack-${prefix}run-image" --cache-from "${uri_prefix}/stack-${prefix}run-image" --target ${prefix}run .
+    if [ "${publish}" = "true" ]; then
+        echo "(*) Publishing..."
+        docker push "${uri_prefix}/stack-${prefix}build-image"
+        docker push "${uri_prefix}/stack-${prefix}run-image"
+    fi
+}
 
-if [ "${publish}" = "true" ]; then
-    echo "(*) Publishing..."
-    docker push "${uri_prefix}/stack-build-image"
-    docker push "${uri_prefix}/stack-run-image"
-    docker push "${uri_prefix}/stack-devcontainer-build-image"
-    docker push "${uri_prefix}/stack-devcontainer-run-image"
-fi
+# Create two stacks - normal, devcontainer
+build_stack_images
+build_stack_images devcontainer

@@ -5,4 +5,4 @@ devpacker_dir="${script_dir}/../devpacker"
 
 "${script_dir}"/../builders/build-stack-images.sh
 "${script_dir}"/../builders/create-builders.sh
-"${devpacker_dir}"/test/test-generate.sh "${1:-false}" "${2:-"${script_dir}/test-project"}"
+"${devpacker_dir}"/test/test-buildpack-commands.sh "${1:-false}" "${2:-"${script_dir}/test-project"}"

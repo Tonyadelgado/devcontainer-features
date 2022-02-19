@@ -9,10 +9,10 @@
 
 ## Adding another feature
 
-1. Update `/devcontainer-features.json` to add any feature configuration like extensions, settings, etc.
+1. Update `devcontainer-features/devcontainer-features.json` to add any feature configuration like extensions, settings, etc.
     1. Add a `targetPath` option with a default for when used outside of a Devpack. Typically this is `/usr/local`.
     1. Add a `buildMode` option if the feature needs to behave differently in production vs devcontainer mode.
-2. Create a sub-folder under `/features` with a `bin` folder that contains one or more of the following scripts/binaries:
+2. Create a sub-folder under `devcontainer-features/features` with a `bin` folder that contains one or more of the following scripts/binaries:
     - `acquire` - [Feature/Devpack] Main step for tools acquisition and installation. **May run as a user other than root, needs to take a path as input.** Specifcally, the path in the `_BUILD_ARG_<FEATURE_ID>_TARGETPATH` env var.
     - `configure` - [Feature/Devpack] Post-installation step for things that require root access to perform. Not executed by pack CLI when used as a Devpack, but instead using the dev container CLI or VS Code. Also create or symlink anything (from `_BUILD_ARG_<FEATURE_ID>_TARGETPATH`) that needs to have a consistent location here.
     - `detect` - [Devpack] Optional script to do detection if no other buildpacks or devcontainer.json (in devcontainer build mode) reference it.
@@ -65,7 +65,7 @@ EOF
 exit 0
 ```
 
-This will update the build plan to enable the feature stored in `/features/nodejs` and set the the `version` option to the value of `node_version`. This will result in `_BUILD_ARG_NODEJS_VERSION` being set in this feature's `acquire` and `configure` scripts. You can use the same pattern for other options.
+This will update the build plan to enable the feature stored in `devcontainer-features/features/nodejs` and set the the `version` option to the value of `node_version`. This will result in `_BUILD_ARG_NODEJS_VERSION` being set in this feature's `acquire` and `configure` scripts. You can use the same pattern for other options.
 
 Setting `build=true` and `launch=true` ensures the output is included in the image used during image build the resulting output "launch" image. You can also control caching but setting `launch` to `true` or `false`
 
@@ -92,7 +92,7 @@ To add a Buildpack under the `/prodpack` folder to the full production builder, 
 
 To release an update to the features, Devpack, Buildpacks, stack images, devpacker CLI, and Builders, follow these steps:
 
-1. Increase the version number in `devpack-settings.json`
+1. Increase the version number in `devcontainer-features/devpack-settings.json`
 2. Commit and push
 3. Run `git tag <version-you-added-to-devpack-settings.json>`
 4. Run `git push --tags`

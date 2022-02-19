@@ -2,7 +2,7 @@
 set -e
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 buildpack_root="${script_dir}"/out/buildpack
-features_root="${script_dir}"/../..
+features_root="${script_dir}"/../../devcontainer-features
 mkdir -p "${buildpack_root}"/bin
 
 # Copy binaries and scripts

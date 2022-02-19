@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
-cd "$(dirname "${BASH_SOURCE[0]}")"/..
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+devpacker_dir="${script_dir}/../devpacker"
 
-./builders/build-stack-images.sh
-./builders/create-builders.sh
-./devpacker/test/test-finalize.sh
+"${script_dir}"/../builders/build-stack-images.sh
+"${script_dir}"/../builders/create-builders.sh
+"${devpacker_dir}"/test/test-finalize.sh "${1:-false}" "${2:-"${script_dir}/test-project"}"
