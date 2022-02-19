@@ -124,6 +124,10 @@
 				"PATH": "/i/am/before:${PATH}:/i/am/after",
 				"TEST2": "${TEST}"
 			},
+			"init": true,
+			"capAdd": [ "SYS_PTRACE" ],
+			"securityOpt": [ "seccomp=unconfined" ],
+			"extensions": ["mutantdino.resourcemonitor"],
 			"options": {
 				"version": {
 					"type": "string",

@@ -10,6 +10,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/buildpacks/libcnb"
+	"github.com/chuxel/devpacker-features/devpacker/common"
 
 	_ "embed"
 )
@@ -22,19 +23,19 @@ var buildScriptPayload []byte
 
 func Generate(featuresPath string, outputPath string) {
 	// Load features.json, buildpack settings
-	featuresJson := LoadFeaturesJson(featuresPath)
-	devpackSettings := LoadDevpackSettings(featuresPath)
+	featuresJson := common.LoadFeaturesJson(featuresPath)
+	devpackSettings := common.LoadDevpackSettings(featuresPath)
 
 	// Copy core features content
 	os.MkdirAll(filepath.Join(outputPath, "bin"), 0755)
-	for _, sourcePath := range []string{"devcontainer-features.json", DevpackSettingsFilename, "features", "common"} {
-		CpR(filepath.Join(featuresPath, sourcePath), outputPath)
+	for _, sourcePath := range []string{"devcontainer-features.json", common.DevpackSettingsFilename, "features", "common"} {
+		common.CpR(filepath.Join(featuresPath, sourcePath), outputPath)
 	}
 	// Output embedded bin/detect and bin/build files
-	if err := WriteFile(filepath.Join(outputPath, "bin", "build"), buildScriptPayload); err != nil {
+	if err := common.WriteFile(filepath.Join(outputPath, "bin", "build"), buildScriptPayload); err != nil {
 		log.Fatal(err)
 	}
-	if err := WriteFile(filepath.Join(outputPath, "bin", "detect"), detectScriptPayload); err != nil {
+	if err := common.WriteFile(filepath.Join(outputPath, "bin", "detect"), detectScriptPayload); err != nil {
 		log.Fatal(err)
 	}
 
@@ -48,12 +49,12 @@ func Generate(featuresPath string, outputPath string) {
 		}
 		for _, fileInfo := range fileInfos {
 			if strings.HasPrefix(fileInfo.Name(), "devpacker-linux-") {
-				Cp(filepath.Join(currentExecutablePath, fileInfo.Name()), filepath.Join(outputPath, "bin"))
+				common.Cp(filepath.Join(currentExecutablePath, fileInfo.Name()), filepath.Join(outputPath, "bin"))
 			}
 		}
 	} else {
 		// This would typically happen when you are debugging where the file name will be different
-		Cp(os.Args[0], filepath.Join(outputPath, "bin"))
+		common.Cp(os.Args[0], filepath.Join(outputPath, "bin"))
 		if err := os.Rename(filepath.Join(outputPath, "bin", currentExecutableName), filepath.Join(outputPath, "bin", "devpacker-linux-"+runtime.GOARCH)); err != nil {
 			log.Fatal(err)
 		}
@@ -67,7 +68,7 @@ func Generate(featuresPath string, outputPath string) {
 	if devpackSettings.ApiVersion != "" {
 		buildpack.API = devpackSettings.ApiVersion
 	} else {
-		buildpack.API = DefaultApiVersion
+		buildpack.API = common.DefaultApiVersion
 	}
 
 	buildpack.Stacks = make([]libcnb.BuildpackStack, 0)
@@ -79,8 +80,8 @@ func Generate(featuresPath string, outputPath string) {
 		featureNameList = append(featureNameList, feature.Id)
 	}
 	buildpack.Metadata = make(map[string]interface{})
-	buildpack.Metadata[FeaturesetMetadataId] = devpackSettings
-	buildpack.Metadata[FeaturesMetadataId] = featureNameList
+	buildpack.Metadata[common.FeaturesetMetadataId] = devpackSettings
+	buildpack.Metadata[common.FeaturesMetadataId] = featureNameList
 
 	// Write buildpack.toml - https://github.com/buildpacks/spec/blob/main/buildpack.md#buildpacktoml-toml
 	file, err := os.OpenFile(filepath.Join(outputPath, "buildpack.toml"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)

@@ -1,4 +1,4 @@
-package main
+package common
 
 import (
 	"encoding/json"
@@ -26,31 +26,33 @@ func (err NonZeroExitError) Error() string {
 }
 
 type FeatureMount struct {
-	Source string
-	Target string
-	Type   string
+	Source string `json:"source,omitempty"`
+	Target string `json:"target,omitempty"`
+	Type   string `json:"type,omitempty"`
 }
 
 type FeatureOption struct {
-	Type        string
-	Enum        []string
-	Proposals   []string
-	Default     interface{}
-	Description string
+	Type        string      `json:"type,omitempty"`
+	Enum        []string    `json:"enum,omitempty"`
+	Proposals   []string    `json:"proposals,omitempty"`
+	Default     interface{} `json:"default,omitempty"`
+	Description string      `json:"description"`
 }
 
 type FeatureConfig struct {
-	Id           string
-	Name         string
-	Options      map[string]FeatureOption
-	Entrypoint   string
-	Privileged   bool
-	Init         bool
-	ContainerEnv map[string]string
-	Mounts       []FeatureMount
-	CapAdd       []string
-	SecurityOpt  []string
-	BuildArg     string
+	Id           string                   `json:"id,omitempty"`
+	Name         string                   `json:"name,omitempty"`
+	Options      map[string]FeatureOption `json:"options,omitempty"`
+	Extensions   []string                 `json:"extensions,omitempty"`
+	Settings     map[string]interface{}   `json:"settings,omitempty"`
+	Entrypoint   string                   `json:"entrypoint,omitempty"`
+	Privileged   bool                     `json:"privileged,omitempty"`
+	Init         bool                     `json:"init,omitempty"`
+	ContainerEnv map[string]string        `json:"containerEnv,omitempty"`
+	Mounts       []FeatureMount           `json:"mounts,omitempty"`
+	CapAdd       []string                 `json:"capAdd,omitempty"`
+	SecurityOpt  []string                 `json:"securityOpt,omitempty"`
+	BuildArg     string                   `json:"buildArg,omitempty"`
 }
 
 func (fc *FeatureConfig) SetProperties(propertyMap map[string]interface{}) {
@@ -84,7 +86,7 @@ func (fc *FeatureConfig) SetProperties(propertyMap map[string]interface{}) {
 }
 
 type FeaturesJson struct {
-	Features []FeatureConfig
+	Features []FeatureConfig `json:"features"`
 }
 
 // Required configuration for processing
@@ -252,7 +254,7 @@ func LoadDevContainerJson(applicationFolder string) (DevContainerJson, string) {
 }
 
 func LoadDevContainerJsonAsMap(applicationFolder string) (map[string]json.RawMessage, string) {
-	var jsonMap map[string]json.RawMessage
+	jsonMap := make(map[string]json.RawMessage)
 	content, devContainerJsonPath := loadDevContainerJsonConent(applicationFolder)
 	if devContainerJsonPath != "" {
 		err := json.Unmarshal(content, &jsonMap)
@@ -308,11 +310,12 @@ func GetOptionEnvVarName(prefix string, featureId string, optionId string) strin
 		prefix = OptionSelectionEnvVarPrefix
 	}
 	featureIdSafe := strings.ReplaceAll(strings.ToUpper(featureId), "-", "_")
+	name := prefix + featureIdSafe
 	if optionId != "" {
 		optionIdSafe := strings.ReplaceAll(strings.ToUpper(optionId), "-", "_")
-		return prefix + featureIdSafe + "_" + strings.ToUpper(strings.ReplaceAll(optionIdSafe, "-", "_"))
+		name = prefix + featureIdSafe + "_" + strings.ToUpper(strings.ReplaceAll(optionIdSafe, "-", "_"))
 	}
-	return prefix + featureId
+	return name
 }
 
 func GetOptionMetadataKey(optionId string) string {
@@ -405,4 +408,37 @@ func GetAllCombinations(arraySize int) [][]int {
 		combinationList = append(combinationList, combin.Combinations(arraySize, i)...)
 	}
 	return combinationList
+}
+
+func AddToSliceIfUnique(slice []string, value string) []string {
+	if SliceContainsString(slice, value) {
+		return slice
+	}
+	return append(slice, value)
+}
+
+func SliceContainsString(slice []string, item string) bool {
+	for _, sliceItem := range slice {
+		if sliceItem == item {
+			return true
+		}
+	}
+	return false
+}
+
+func SliceUnion(slice1 []string, slice2 []string) []string {
+	union := slice1[0:]
+	for _, sliceItem := range slice2 {
+		union = AddToSliceIfUnique(union, sliceItem)
+	}
+	return union
+}
+
+func ToJsonRawMessage(value interface{}) json.RawMessage {
+	var err error
+	var bytes json.RawMessage
+	if bytes, err = json.Marshal(value); err != nil {
+		log.Fatal("Failed to convert to json.RawMessage:", err)
+	}
+	return bytes
 }

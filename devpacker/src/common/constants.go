@@ -1,4 +1,4 @@
-package main
+package common
 
 const DefaultApiVersion = "0.7"
 

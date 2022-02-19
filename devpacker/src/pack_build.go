@@ -4,20 +4,23 @@ import (
 	"log"
 	"os"
 	"os/exec"
+
+	"github.com/chuxel/devpacker-features/devpacker/common"
+	"github.com/chuxel/devpacker-features/devpacker/finalize"
 )
 
-func PackBuild(imageName string, buildMode string, applicationFolder string, packArgs []string) {
+func PackBuild(imageName string, buildModeOverride string, applicationFolder string, packArgs []string) {
 	log.Println("Image name:", imageName)
 	log.Println("Application folder:", applicationFolder)
 	log.Println("Pack CLI arguments:", packArgs)
-	execPackBuild(imageName, buildMode, applicationFolder, packArgs)
-	FinalizeImage(imageName, buildMode, applicationFolder)
+	execPackBuild(imageName, buildModeOverride, applicationFolder, packArgs)
+	finalize.FinalizeImage(imageName, buildModeOverride, applicationFolder)
 }
 
 func execPackBuild(imageName string, buildMode string, applicationFolder string, packArgs []string) {
 	args := []string{"build", imageName}
 	if buildMode != "" {
-		packArgs = append(args, "-e", ContainerImageBuildModeEnvVarName+"="+buildMode)
+		packArgs = append(args, "-e", common.ContainerImageBuildModeEnvVarName+"="+buildMode)
 	}
 	args = append(args, packArgs...)
 	// Invoke dev container CLI

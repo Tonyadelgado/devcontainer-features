@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"log"
@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/buildpacks/libcnb"
+	"github.com/chuxel/devpacker-features/devpacker/common"
 	"github.com/joho/godotenv"
 )
 
@@ -27,14 +28,14 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 	var result libcnb.DetectResult
 
 	// Load features.json, buildpack settings
-	devpackSettings := LoadDevpackSettings(context.Buildpack.Path)
-	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
+	devpackSettings := common.LoadDevpackSettings(context.Buildpack.Path)
+	featuresJson := common.LoadFeaturesJson(context.Buildpack.Path)
 	log.Println("Number of features in Devpack:", len(featuresJson.Features))
 
 	// Load devcontainer.json if in devcontainer build mode
-	var devContainerJson DevContainerJson
-	if GetContainerImageBuildMode() == "devcontainer" {
-		devContainerJson, _ = LoadDevContainerJson(context.Application.Path)
+	var devContainerJson common.DevContainerJson
+	if common.GetContainerImageBuildMode() == "devcontainer" {
+		devContainerJson, _ = common.LoadDevContainerJson(context.Application.Path)
 	}
 
 	// See if should provide any features
@@ -58,7 +59,7 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 
 	result.Plans = append(result.Plans, plan)
 	// Generate all permutations where something is just provided
-	combinationList := GetAllCombinations(len(onlyProvided))
+	combinationList := common.GetAllCombinations(len(onlyProvided))
 	for _, combination := range combinationList {
 		var optionalPlan libcnb.BuildPlan
 		copy(optionalPlan.Requires, plan.Requires)
@@ -74,23 +75,23 @@ func (fd FeatureDetector) Detect(context libcnb.DetectContext) (libcnb.DetectRes
 	return result, nil
 }
 
-func detectFeature(context libcnb.DetectContext, buildpackSettings DevpackSettings, feature FeatureConfig, devContainerJson DevContainerJson) (bool, libcnb.BuildPlanProvide, libcnb.BuildPlanRequire, error) {
+func detectFeature(context libcnb.DetectContext, buildpackSettings common.DevpackSettings, feature common.FeatureConfig, devContainerJson common.DevContainerJson) (bool, libcnb.BuildPlanProvide, libcnb.BuildPlanRequire, error) {
 	// e.g. chuxel/devcontainer/features/packcli
-	fullFeatureId := GetFullFeatureId(feature, buildpackSettings, "/")
+	fullFeatureId := common.GetFullFeatureId(feature, buildpackSettings, "/")
 	provide := libcnb.BuildPlanProvide{Name: fullFeatureId}
 	require := libcnb.BuildPlanRequire{Name: fullFeatureId, Metadata: make(map[string]interface{})}
 
 	// Always set build mode
-	optionSelections := map[string]string{BuildModeDevContainerJsonSetting: GetContainerImageBuildMode()}
+	optionSelections := map[string]string{common.BuildModeDevContainerJsonSetting: common.GetContainerImageBuildMode()}
 	// Add any option selections from BP_CONTAINER_FEATURE_<feature.Id>_<option> env vars and devcontainer.json (in devcontainer mode)
 	detected, optionSelections := detectOptionSelections(feature, buildpackSettings, devContainerJson)
 	// Always add optionSelections to require metadata
 	for optionId, selection := range optionSelections {
-		require.Metadata[GetOptionMetadataKey(optionId)] = selection
+		require.Metadata[common.GetOptionMetadataKey(optionId)] = selection
 	}
 
 	// Check if detect script for feature exists, return whatever the result of the devcontainer.json and env var detection happens to be
-	detectScriptPath := GetFeatureScriptPath(context.Buildpack.Path, feature.Id, "detect")
+	detectScriptPath := common.GetFeatureScriptPath(context.Buildpack.Path, feature.Id, "detect")
 	_, err := os.Stat(detectScriptPath)
 	if err != nil {
 		return detected, provide, require, nil
@@ -98,7 +99,7 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings DevpackSettin
 
 	// Execute the script - set path to where a resulting devcontainer-features.env should be placed as env var
 	log.Printf("- Executing %s\n", detectScriptPath)
-	env := GetBuildEnvironment(feature, optionSelections, map[string]string{
+	env := common.GetBuildEnvironment(feature, optionSelections, map[string]string{
 		"SELECTION_ENV_FILE_PATH": DevContainerFeaturesEnvPath,
 	})
 	logWriter := log.Writer()
@@ -117,9 +118,9 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings DevpackSettin
 			if err := godotenv.Load(DevContainerFeaturesEnvPath); err != nil {
 				log.Fatal(err)
 			}
-			_, optionSelections = mergeOptionSelectionsFromEnv(feature, optionSelections, OptionSelectionEnvVarPrefix)
+			_, optionSelections = mergeOptionSelectionsFromEnv(feature, optionSelections, common.OptionSelectionEnvVarPrefix)
 			for option, selection := range optionSelections {
-				require.Metadata[GetOptionMetadataKey(option)] = selection
+				require.Metadata[common.GetOptionMetadataKey(option)] = selection
 			}
 		}
 		return true, provide, require, nil
@@ -128,16 +129,16 @@ func detectFeature(context libcnb.DetectContext, buildpackSettings DevpackSettin
 	if exitCode == 100 {
 		return false, provide, require, nil
 	} else {
-		return false, provide, require, NonZeroExitError{ExitCode: exitCode}
+		return false, provide, require, common.NonZeroExitError{ExitCode: exitCode}
 	}
 }
 
-func detectOptionSelections(feature FeatureConfig, buildpackSettings DevpackSettings, devContainerJson DevContainerJson) (bool, map[string]string) {
+func detectOptionSelections(feature common.FeatureConfig, buildpackSettings common.DevpackSettings, devContainerJson common.DevContainerJson) (bool, map[string]string) {
 	optionSelections := make(map[string]string)
 	detectedDevContainerJson := false
 	// If in dev container mode, parse devcontainer.json features (if any)
-	if GetContainerImageBuildMode() == "devcontainer" {
-		fullFeatureId := GetFullFeatureId(feature, buildpackSettings, "/")
+	if common.GetContainerImageBuildMode() == "devcontainer" {
+		fullFeatureId := common.GetFullFeatureId(feature, buildpackSettings, "/")
 		for featureName, jsonOptionSelections := range devContainerJson.Features {
 			if featureName == fullFeatureId || strings.HasPrefix(featureName, fullFeatureId+"@") {
 				detectedDevContainerJson = true
@@ -156,21 +157,22 @@ func detectOptionSelections(feature FeatureConfig, buildpackSettings DevpackSett
 	}
 
 	// Look for BP_CONTAINER_FEATURE_<feature.Id>_<option> environment variables, convert
-	detectedEnv, optionselections := mergeOptionSelectionsFromEnv(feature, optionSelections, ProjectTomlOptionSelectionEnvVarPrefix)
+	detectedEnv, optionselections := mergeOptionSelectionsFromEnv(feature, optionSelections, common.ProjectTomlOptionSelectionEnvVarPrefix)
 	return (detectedDevContainerJson || detectedEnv), optionselections
 }
 
-func mergeOptionSelectionsFromEnv(feature FeatureConfig, optionSelections map[string]string, prefix string) (bool, map[string]string) {
+func mergeOptionSelectionsFromEnv(feature common.FeatureConfig, optionSelections map[string]string, prefix string) (bool, map[string]string) {
 	detected := false
-	enabledEnvVarVal := os.Getenv(GetOptionEnvVarName(prefix, feature.Id, ""))
+	enabledEnvVarVal := os.Getenv(common.GetOptionEnvVarName(prefix, feature.Id, ""))
 	if enabledEnvVarVal != "" && enabledEnvVarVal != "false" {
 		detected = true
 	}
 	for optionId := range feature.Options {
-		optionValue := os.Getenv(GetOptionEnvVarName(prefix, feature.Id, optionId))
+		optionValue := os.Getenv(common.GetOptionEnvVarName(prefix, feature.Id, optionId))
 		if optionValue != "" {
 			optionSelections[optionId] = optionValue
 		}
 	}
+	log.Println(optionSelections)
 	return detected, optionSelections
 }

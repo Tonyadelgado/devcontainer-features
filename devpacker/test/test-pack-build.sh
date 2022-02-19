@@ -16,5 +16,5 @@ fi
     -p "${script_dir}/test-project" \
     --pull-policy if-not-present \
     --builder ghcr.io/chuxel/devcontainer-features/builder-devcontainer-empty \
-    "${clear_cache_flag}" \
+    ${clear_cache_flag} \
     --trust-builder

@@ -8,10 +8,11 @@ import (
 	"strings"
 
 	"github.com/buildpacks/libcnb"
+	"github.com/chuxel/devpacker-features/devpacker/finalize"
+	"github.com/chuxel/devpacker-features/devpacker/internal"
 )
 
 func main() {
-
 	// Define flags
 	var buildMode string
 	flag.StringVar(&buildMode, "mode", "", "Override container image build mode: production | devcontainer")
@@ -38,7 +39,7 @@ func main() {
 		executePackBuildCommand(nonFlagArgs[1:], buildMode)
 	case "_internal":
 		// If doing a build or detect command, pass of processing to FeatureBuilder, FeatureDetector respectively
-		libcnb.Main(FeatureDetector{}, FeatureBuilder{}, libcnb.WithArguments(nonFlagArgs[1:]))
+		libcnb.Main(internal.FeatureDetector{}, internal.FeatureBuilder{}, libcnb.WithArguments(nonFlagArgs[1:]))
 	default:
 		fmt.Println("Invalid devpacker command:", nonFlagArgs[0])
 	}
@@ -56,7 +57,7 @@ func executeGenerateCommand(args []string) {
 	Generate(featuresPath, outputPath)
 }
 
-func executeFinalizeCommand(args []string, buildMode string) {
+func executeFinalizeCommand(args []string, buildModeOverride string) {
 	var applicationFolder string
 	if len(args) < 1 {
 		fmt.Println("Missing required parameter. Usage: devpacker finalize <image ID> [application folder]")
@@ -71,10 +72,11 @@ func executeFinalizeCommand(args []string, buildMode string) {
 			applicationFolder = cwd
 		}
 	}
-	FinalizeImage(args[0], buildMode, applicationFolder)
+	imageToFinalize := args[0]
+	finalize.FinalizeImage(imageToFinalize, buildModeOverride, applicationFolder)
 }
 
-func executePackBuildCommand(args []string, buildMode string) {
+func executePackBuildCommand(args []string, buildModeOverride string) {
 	var applicationFolder string
 	var imageName string
 	var flagArgs []string
@@ -108,6 +110,5 @@ func executePackBuildCommand(args []string, buildMode string) {
 			applicationFolder = cwd
 		}
 	}
-	os.Setenv(ContainerImageBuildModeEnvVarName, buildMode)
-	PackBuild(imageName, buildMode, applicationFolder, flagArgs)
+	PackBuild(imageName, buildModeOverride, applicationFolder, flagArgs)
 }

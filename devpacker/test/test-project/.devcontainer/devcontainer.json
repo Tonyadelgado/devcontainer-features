@@ -6,6 +6,7 @@
 		"chuxel/devcontainer-features/buildpack-test": {
 			"version": "from-devcontainer.json",
 			"foo": "bar"
-		}
+		},
+		"docker-in-docker": "latest"
 	} /* Comment too */
 }

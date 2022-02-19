@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"fmt"
@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+
+	"github.com/chuxel/devpacker-features/devpacker/common"
 
 	"github.com/buildpacks/libcnb"
 )
@@ -23,8 +25,8 @@ type FeatureLayerContributor struct {
 	// Name() string
 
 	// FullFeatureId() string
-	Feature          FeatureConfig
-	DevpackSettings  DevpackSettings
+	Feature          common.FeatureConfig
+	DevpackSettings  common.DevpackSettings
 	LayerTypes       libcnb.LayerTypes
 	Context          libcnb.BuildContext
 	OptionSelections map[string]string
@@ -40,8 +42,8 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	var result libcnb.BuildResult
 
 	// Load devcontainer.json, features.json, buildpack settings
-	devpackSettings := LoadDevpackSettings(context.Buildpack.Path)
-	featuresJson := LoadFeaturesJson(context.Buildpack.Path)
+	devpackSettings := common.LoadDevpackSettings(context.Buildpack.Path)
+	featuresJson := common.LoadFeaturesJson(context.Buildpack.Path)
 	log.Println("Number of features in Devpack:", len(featuresJson.Features))
 
 	// Process each feature if it is in the buildpack plan in the order they appear in features.json
@@ -69,26 +71,26 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 	log.Printf("Number of layer contributors: %d", len(result.Layers))
 	log.Printf("Unmet entries: %d", len(result.Unmet))
 
-	buildMode := GetContainerImageBuildMode()
+	buildMode := common.GetContainerImageBuildMode()
 
 	// Add metadata on features and post processing needs
 	result.Labels = append(result.Labels, libcnb.Label{
-		Key:   BuildModeMetadataId,
+		Key:   common.BuildModeMetadataId,
 		Value: buildMode,
 	})
 
 	// If we're in devcontainer mode, delete the app folder contents so they are omitted in the output.
 	// This would not affect detection logic because any detect steps will have already run by this point.
-	if buildMode == "devcontainer" && os.Getenv(RemoveApplicationFolderOverrideEnvVarName) != "false" {
+	if buildMode == "devcontainer" && os.Getenv(common.RemoveApplicationFolderOverrideEnvVarName) != "false" {
 		log.Println("(*) Removing contents at", context.Application.Path, "so they are not in the resulting output.")
 		entries, err := os.ReadDir(context.Application.Path)
 		if err != nil {
 			log.Fatal("Failed to get directory contents in", context.Application.Path, "-", err)
 		}
 		// Copy devcontainer.json so it can be used for subsequent processing
-		devContainerJsonFullPath := FindDevContainerJson(context.Application.Path)
+		devContainerJsonFullPath := common.FindDevContainerJson(context.Application.Path)
 		if devContainerJsonFullPath != "" {
-			Cp(devContainerJsonFullPath, "/tmp/")
+			common.Cp(devContainerJsonFullPath, "/tmp/")
 			if filepath.Base(devContainerJsonFullPath) == "devcontainer.json" {
 				if os.Rename("/tmp/devcontainer.json", "/tmp/.devcontainer.json"); err != nil {
 					log.Fatal("Failed to rename devcontainer.json to .devcontainer.json: ", err)
@@ -102,7 +104,7 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 		}
 		// Copy devcontainer.json back
 		if devContainerJsonFullPath != "" {
-			Cp("/tmp/.devcontainer.json", context.Application.Path)
+			common.Cp("/tmp/.devcontainer.json", context.Application.Path)
 		}
 	} else {
 		log.Println("(*) Leaving application folder contents in place.")
@@ -113,7 +115,7 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 
 func (fc FeatureLayerContributor) FullFeatureId() string {
 	// e.g. chuxel-devcontainer-features-packcli
-	return GetFullFeatureId(fc.Feature, fc.DevpackSettings, "/")
+	return common.GetFullFeatureId(fc.Feature, fc.DevpackSettings, "/")
 }
 
 // Implementation of libcnb.LayerContributor.Name
@@ -126,7 +128,7 @@ func (fc FeatureLayerContributor) Name() string {
 func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 	var err error
 	// Check if acquire script for feature exists, exit otherwise
-	acquireScriptPath := GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, "acquire")
+	acquireScriptPath := common.GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, "acquire")
 	_, err = os.Stat(acquireScriptPath)
 	if err != nil {
 		log.Printf("- Skipping feature %s. No acquire script.", fc.FullFeatureId())
@@ -136,7 +138,7 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 	// Always set targetPath to the layer path we were handed
 	fc.OptionSelections["targetPath"] = layer.Path
 	// Get build environment based on set options
-	env := GetBuildEnvironment(fc.Feature, fc.OptionSelections, map[string]string{
+	env := common.GetBuildEnvironment(fc.Feature, fc.OptionSelections, map[string]string{
 		"PROFILE_D":    filepath.Join(layer.Path, "profile.d"),
 		"ENTRYPOINT_D": filepath.Join(layer.Path, "entrypoint.d"),
 	})
@@ -149,9 +151,9 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 
 	// Wire in configure script (if it exists) - we'll fire this in post processing
 	configureExists := false
-	configureScriptPath := GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, "configure")
+	configureScriptPath := common.GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, "configure")
 	if _, err := os.Stat(configureScriptPath); err == nil {
-		featureConfigBase := filepath.Join(layer.Path, DevContainerConfigSubfolder, "feature-config")
+		featureConfigBase := filepath.Join(layer.Path, common.DevContainerConfigSubfolder, "feature-config")
 		featuresBase := filepath.Join(featureConfigBase, "features")
 		featureConfigFolder := filepath.Join(featuresBase, fc.Feature.Id)
 		if err := os.MkdirAll(featureConfigFolder, 0777); err != nil {
@@ -161,14 +163,14 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 		log.Println("Setting up configure script for post processing...")
 		configureExists = true
 		// Copy configure script into layer if it exists
-		CpR(filepath.Join(fc.Context.Buildpack.Path, "features", fc.Feature.Id), featuresBase)
-		CpR(filepath.Join(fc.Context.Buildpack.Path, "common"), featureConfigBase)
+		common.CpR(filepath.Join(fc.Context.Buildpack.Path, "features", fc.Feature.Id), featuresBase)
+		common.CpR(filepath.Join(fc.Context.Buildpack.Path, "common"), featureConfigBase)
 		// output an environment file that we can source later
 		envFileContents := ""
 		for _, line := range env {
 			envFileContents += line + "\n"
 		}
-		WriteFile(filepath.Join(featureConfigFolder, "devcontainer-features.env"), []byte(envFileContents))
+		common.WriteFile(filepath.Join(featureConfigFolder, "devcontainer-features.env"), []byte(envFileContents))
 	}
 
 	// If there's nothing to do, exit
@@ -178,7 +180,7 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 
 	// Add ID and option selections to layer metadata, add to LayerContributor
 	layer.Metadata = make(map[string]interface{})
-	layer.Metadata[FeatureLayerMetadataId] = LayerFeatureMetadata{
+	layer.Metadata[common.FeatureLayerMetadataId] = common.LayerFeatureMetadata{
 		Id:               fc.FullFeatureId(),
 		Version:          fc.DevpackSettings.Version,
 		Config:           fc.Feature,
@@ -197,7 +199,7 @@ func (fc FeatureLayerContributor) Contribute(layer libcnb.Layer) (libcnb.Layer, 
 }
 
 // See if the build plan includes an entry for this feature. If so, return a LayerContributor for it
-func createLayerContributorForFeature(feature FeatureConfig, devpackSettings DevpackSettings, plan libcnb.BuildpackPlan) (bool, FeatureLayerContributor) {
+func createLayerContributorForFeature(feature common.FeatureConfig, devpackSettings common.DevpackSettings, plan libcnb.BuildpackPlan) (bool, FeatureLayerContributor) {
 	layerContributor := FeatureLayerContributor{Feature: feature, DevpackSettings: devpackSettings}
 	// See if detect said should provide this feature
 	for _, entry := range plan.Entries {
@@ -224,17 +226,17 @@ func createLayerContributorForFeature(feature FeatureConfig, devpackSettings Dev
 			// either the "detect" command or from a dependant buildpack
 			optionSelections := make(map[string]string)
 			for optionId := range feature.Options {
-				selection, containsKey := entry.Metadata[GetOptionMetadataKey(optionId)]
+				selection, containsKey := entry.Metadata[common.GetOptionMetadataKey(optionId)]
 				if containsKey {
 					optionSelections[optionId] = fmt.Sprint(selection)
 				}
 			}
 			// Always parse buildMode. If not set by detect (e.g. was required by another Buildpack), detect the buildMode instead
-			buildMode := entry.Metadata[GetOptionMetadataKey(BuildModeDevContainerJsonSetting)]
+			buildMode := entry.Metadata[common.GetOptionMetadataKey(common.BuildModeDevContainerJsonSetting)]
 			if buildMode == nil {
-				buildMode = GetContainerImageBuildMode()
+				buildMode = common.GetContainerImageBuildMode()
 			}
-			optionSelections[BuildModeDevContainerJsonSetting] = fmt.Sprint(buildMode)
+			optionSelections[common.BuildModeDevContainerJsonSetting] = fmt.Sprint(buildMode)
 			layerContributor.OptionSelections = optionSelections
 
 			return true, layerContributor
@@ -290,7 +292,7 @@ func processEnvVar(name string, value string, envVars map[string]string) (string
 }
 
 func (fc FeatureLayerContributor) executeFeatureScript(scriptName string, env []string) (bool, error) {
-	scriptPath := GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, scriptName)
+	scriptPath := common.GetFeatureScriptPath(fc.Context.Buildpack.Path, fc.Feature.Id, scriptName)
 	if _, err := os.Stat(scriptPath); err != nil {
 		log.Printf("- Skipping feature %s. No acquire script.", fc.FullFeatureId())
 		return false, nil
@@ -311,7 +313,7 @@ func (fc FeatureLayerContributor) executeFeatureScript(scriptName string, env []
 	exitCode := command.ProcessState.ExitCode()
 	if exitCode != 0 {
 		log.Printf("Error executing %s. Exit code %d.\n", scriptPath, exitCode)
-		return false, NonZeroExitError{ExitCode: exitCode}
+		return false, common.NonZeroExitError{ExitCode: exitCode}
 	}
 
 	return true, nil

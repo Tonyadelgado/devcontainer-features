@@ -1,4 +1,4 @@
-package main
+package finalize
 
 import (
 	"bytes"
@@ -13,9 +13,10 @@ import (
 	"strings"
 
 	"github.com/buildpacks/lifecycle/platform"
+	"github.com/chuxel/devpacker-features/devpacker/common"
 )
 
-const labelMetadataTemplate = "{\"lifecycle\": {{ index .Config.Labels \"" + platform.LayerMetadataLabel + "\" }} , \"buildmode\": \"{{ index .Config.Labels \"" + BuildModeMetadataId + "\" }}\" , \"done\": \"{{ index .Config.Labels \"" + PostProcessingDoneMetadataId + "\" }}\" }"
+const labelMetadataTemplate = "{\"lifecycle\": {{ index .Config.Labels \"" + platform.LayerMetadataLabel + "\" }} , \"buildmode\": \"{{ index .Config.Labels \"" + common.BuildModeMetadataId + "\" }}\" , \"done\": \"{{ index .Config.Labels \"" + common.PostProcessingDoneMetadataId + "\" }}\" }"
 
 type LabelBuldpackLayer struct {
 	Data map[string]json.RawMessage
@@ -41,67 +42,143 @@ func FinalizeImage(imageToFinalize string, buildModeOverride string, application
 	layerFeatureMetadataMap, buildMode, postProcessingDone := getImageFeatureMetadata(imageToFinalize, buildModeOverride)
 	log.Println("Image build mode:", buildMode)
 
-	// Get devcontainer.json as a map so we don't change any fields unexpectedly
-	devContainerJsonMap := make(map[string]json.RawMessage)
-	devContainerJsonFeatureMap := make(map[string]interface{})
-	var devContainerJsonPath string
-	// Only load the existing devcontainer.json file if we're in the devcontainer context
-	if buildMode == "devcontainer" {
-		log.Println("Loading devcontainer.json if present.")
-		devContainerJsonMap, devContainerJsonPath = LoadDevContainerJsonAsMap(applicationFolder)
-		// Un-marshall devcontainer.json features into a map
-		if err := json.Unmarshal(devContainerJsonMap["features"], &devContainerJsonFeatureMap); err != nil {
-			log.Fatal("Failed to unmarshal features from devcontainer.json: ", err)
-		}
-	} else {
-		log.Println("Skipping devcontainer.json load since build mode is", buildMode)
-		devContainerJsonPath = FindDevContainerJson(applicationFolder)
-	}
-
-	// Inspect the specified image to and add any feature metadata into our features map
-	log.Println("Inspecting image lifecycle metadata", imageToFinalize, "for feature metadata.")
-	devContainerJsonFeatureMap = convertMetadataToFeatureOptionSelections(layerFeatureMetadataMap, devContainerJsonFeatureMap)
-
 	// Execute post processing where required
 	log.Println("Starting post processing. Already complete for: ", postProcessingDone)
 	executePostProcessing(imageToFinalize, postProcessingDone, layerFeatureMetadataMap)
 
+	// Create devcontainer.json and finalizer feature
+	createDevContainerJson(imageToFinalize, layerFeatureMetadataMap, buildMode, applicationFolder)
+
+	//log.Println("Calling devcontainer CLI to add remaining container features to image.")
+	//devContainerImageBuild(imageToFinalize, targetDevContainerJsonPath, devContainerJsonPath)
+}
+
+func createDevContainerJson(imageToFinalize string, layerFeatureMetadataMap map[string]common.LayerFeatureMetadata, buildMode string, applicationFolder string) {
+	// Get devcontainer.json as a map so we don't change any fields unexpectedly
+	devContainerJsonMap := make(map[string]json.RawMessage)
+	featureOptionSelections := make(map[string]interface{})
+	var devContainerJsonPath string
+	// Only load the existing devcontainer.json file if we're in the devcontainer context
+	if buildMode == "devcontainer" {
+		log.Println("Loading devcontainer.json if present.")
+		devContainerJsonMap, devContainerJsonPath = common.LoadDevContainerJsonAsMap(applicationFolder)
+		if devContainerJsonPath != "" {
+			// Un-marshall devcontainer.json features into a map
+			if err := json.Unmarshal(devContainerJsonMap["features"], &featureOptionSelections); err != nil {
+				log.Fatal("Failed to unmarshal features from devcontainer.json: ", err)
+			}
+		}
+	} else {
+		log.Println("Skipping devcontainer.json load since build mode is", buildMode)
+		devContainerJsonPath = common.FindDevContainerJson(applicationFolder)
+	}
+
+	// Remove any features from the in-bound devcontainer.json that we've already processed
+	// remaining steps will be covered by the finalizer feature we'll generate next
+	for featureId := range featureOptionSelections {
+		if _, hasKey := layerFeatureMetadataMap[featureId]; hasKey || strings.HasPrefix(layerFeatureMetadataMap[featureId].Id, featureId+"@") {
+			delete(featureOptionSelections, featureId)
+		}
+	}
+
+	// Determine and create target folder paths
+	targetFolder := applicationFolder
+	if devContainerJsonPath == "" {
+		targetFolder = filepath.Join(applicationFolder, ".devcontainer")
+		devContainerJsonPath = filepath.Join(targetFolder, "devcontainer.json")
+		if err := os.MkdirAll(targetFolder, 0755); err != nil {
+			log.Fatal("Failed to create target folder: ", err)
+		}
+	} else {
+		//targetFolder = filepath.Dir(devContainerJsonPath)
+	}
+
+	// Work around lack of local dev container feature reference support
+	devContainerJsonMap = mergeFeatureConfigToDevContainerJson(devContainerJsonMap, layerFeatureMetadataMap)
+
+	/* TODO: Use a feature instead of devcontainer.json merge once you can reference a local feature
+
+	// Generate union of config for steps that have already been added to the image, output generated feature to target folder
+	finalizeFeaturesJson := FeaturesJson{[]FeatureConfig{generateFinalizeFeatureConfig(layerFeatureMetadataMap)}}
+	finalizeFeaturesJsonBytes, err := json.MarshalIndent(&finalizeFeaturesJson, "", "\t")
+	if err != nil {
+		log.Fatal("Failed to marshal finalizeFeaturesJson to json.RawMessage: ", err)
+	}
+	finalizeFeatureTargetFolder := filepath.Join(targetFolder, "devpack-config")
+	if err := os.MkdirAll(finalizeFeatureTargetFolder, 0755); err != nil {
+		log.Fatal("Failed to create finalizer feature target folder: ", err)
+	}
+	log.Println("Writing out updated related finalize feature to:", finalizeFeatureTargetFolder)
+	WriteFile(filepath.Join(finalizeFeatureTargetFolder, "devcontainer-features.json"), finalizeFeaturesJsonBytes)
+	WriteFile(filepath.Join(finalizeFeatureTargetFolder, "install.sh"), []byte("exit 0"))
+	featureOptionSelections["./devpack-config#finalize"] = "latest"
+	*/
+
 	// Convert feature map back into a RawMessage, and add it back into the devcontainer json object
-	featureRawMessage, err := json.Marshal(devContainerJsonFeatureMap)
+	featureRawMessage, err := json.Marshal(featureOptionSelections)
 	if err != nil {
 		log.Fatal("Failed to marshal devContainerJsonFeatureMap to json.RawMessage: ", err)
 	}
 	devContainerJsonMap["features"] = featureRawMessage
-
-	// If no devcontainer.json exists, create one with the image property set to the specified image
-	targetDevContainerJsonPath := devContainerJsonPath
-	if targetDevContainerJsonPath == "" {
-		targetDevContainerJsonPath = filepath.Join(applicationFolder, ".devcontainer.json")
-		devContainerJsonMap["image"] = toJsonRawMessage(imageToFinalize)
-	}
-
-	// Always force userEnvProbe to interactiveLoginShell
-	devContainerJsonMap["userEnvProbe"] = toJsonRawMessage("loginInteractiveShell")
-
-	// Append ".devpack" to avoid overwriting
-	targetDevContainerJsonPath += ".devpack"
+	devContainerJsonMap["image"] = common.ToJsonRawMessage(imageToFinalize)
+	devContainerJsonMap["userEnvProbe"] = common.ToJsonRawMessage("loginInteractiveShell")
+	delete(devContainerJsonMap, "build")
+	delete(devContainerJsonMap, "dockerComposeFile")
 
 	// Encode json content and write it to a file
-	updatedDevContainerJsonContent, err := json.MarshalIndent(devContainerJsonMap, "", "\t")
+	updatedDevContainerJsonBytes, err := json.MarshalIndent(devContainerJsonMap, "", "\t")
 	if err != nil {
 		log.Fatal("Failed to marshal devContainerJsonMap to json: ", err)
 	}
+	targetDevContainerJsonPath := devContainerJsonPath + ".devpack"
 	log.Println("Writing out updated devcontainer.json file:", targetDevContainerJsonPath)
-	if err := WriteFile(targetDevContainerJsonPath, updatedDevContainerJsonContent); err != nil {
+	if err := common.WriteFile(targetDevContainerJsonPath, updatedDevContainerJsonBytes); err != nil {
 		log.Fatal("Failed to write updated devcontainer.json file: ", err)
 	}
-
-	//log.Println("Calling devcontainer CLI to add remaining container features to image.")
-	//devContainerImageBuild(imageToFinalize, targetDevContainerJsonPath, devContainerJsonPath)
-
 }
 
-func executePostProcessing(imageToFinalize string, postProcessingDone string, layerFeatureMetadataMap map[string]LayerFeatureMetadata) {
+func generateFinalizeFeatureConfig(layerFeatureMetadataMap map[string]common.LayerFeatureMetadata) common.FeatureConfig {
+	finalizeFeatureConfig := common.FeatureConfig{Id: "finalize"}
+	// Merge in remaining config from features already in the image
+	for _, layerFeatureMetadata := range layerFeatureMetadataMap {
+		// Merge flags
+		finalizeFeatureConfig.Privileged = finalizeFeatureConfig.Privileged || layerFeatureMetadata.Config.Privileged
+		finalizeFeatureConfig.Init = finalizeFeatureConfig.Init || layerFeatureMetadata.Config.Init
+
+		// Merge string arrays
+		finalizeFeatureConfig.CapAdd = common.SliceUnion(finalizeFeatureConfig.CapAdd, layerFeatureMetadata.Config.CapAdd)
+		finalizeFeatureConfig.SecurityOpt = common.SliceUnion(finalizeFeatureConfig.SecurityOpt, layerFeatureMetadata.Config.SecurityOpt)
+		finalizeFeatureConfig.Extensions = common.SliceUnion(finalizeFeatureConfig.Extensions, layerFeatureMetadata.Config.Extensions)
+
+		// Merge VS Code settings
+		if finalizeFeatureConfig.Settings == nil {
+			finalizeFeatureConfig.Settings = make(map[string]interface{})
+		}
+		for key, value := range layerFeatureMetadata.Config.Settings {
+			finalizeFeatureConfig.Settings[key] = value
+		}
+		// Merge mount points
+		for _, newMount := range layerFeatureMetadata.Config.Mounts {
+			shouldAdd := true
+			for _, mount := range finalizeFeatureConfig.Mounts {
+				if mount.Source == newMount.Source && mount.Target == newMount.Target && mount.Type == newMount.Type {
+					shouldAdd = false
+					break
+				}
+			}
+			if shouldAdd {
+				layerFeatureMetadata.Config.Mounts = append(layerFeatureMetadata.Config.Mounts, newMount)
+			}
+		}
+	}
+	// Add required version option (not used)
+	finalizeFeatureConfig.Options = map[string]common.FeatureOption{
+		"version": {Type: "string", Enum: []string{"latest"}, Default: "latest", Description: "Not used."},
+	}
+	return finalizeFeatureConfig
+}
+
+func executePostProcessing(imageToFinalize string, postProcessingDone string, layerFeatureMetadataMap map[string]common.LayerFeatureMetadata) {
 	var err error
 	tempDir := filepath.Join(os.TempDir(), strconv.FormatInt(rand.Int63(), 36))
 	if err = os.MkdirAll(tempDir, 0777); err != nil {
@@ -109,7 +186,7 @@ func executePostProcessing(imageToFinalize string, postProcessingDone string, la
 	}
 
 	postProcessingScriptPath := filepath.Join(tempDir, "post-processing.sh")
-	if err = WriteFile(postProcessingScriptPath, postProcessingScript); err != nil {
+	if err = common.WriteFile(postProcessingScriptPath, postProcessingScript); err != nil {
 		log.Fatal("Failed to write post-processing.sh: ", err)
 	}
 
@@ -130,7 +207,7 @@ func executePostProcessing(imageToFinalize string, postProcessingDone string, la
 		}
 	}
 	dockerFilePath := filepath.Join(tempDir, "Dockerfile")
-	if err = WriteFile(dockerFilePath, postProcessingDockerfileModified); err != nil {
+	if err = common.WriteFile(dockerFilePath, postProcessingDockerfileModified); err != nil {
 		log.Fatal("Failed to write Dockerfile: ", err)
 	}
 
@@ -138,19 +215,6 @@ func executePostProcessing(imageToFinalize string, postProcessingDone string, la
 	if err = os.RemoveAll(tempDir); err != nil {
 		log.Fatal("Failed to remove temp directory: ", err)
 	}
-}
-
-func convertMetadataToFeatureOptionSelections(layerFeatureMetadataMap map[string]LayerFeatureMetadata, devContainerJsonFeatureMap map[string]interface{}) map[string]interface{} {
-	for featureId, _ := range devContainerJsonFeatureMap {
-		if _, hasKey := layerFeatureMetadataMap[featureId]; hasKey || strings.HasPrefix(layerFeatureMetadataMap[featureId].Id, featureId+"@") {
-			delete(devContainerJsonFeatureMap, featureId)
-		}
-	}
-	// And finally add the selections
-	for featureId, layerFeatureMetadata := range layerFeatureMetadataMap {
-		devContainerJsonFeatureMap[featureId+"@"+layerFeatureMetadata.Version] = layerFeatureMetadata.OptionSelections
-	}
-	return devContainerJsonFeatureMap
 }
 
 func dockerCli(workingDir string, captureOutput bool, args ...string) []byte {
@@ -177,17 +241,8 @@ func dockerCli(workingDir string, captureOutput bool, args ...string) []byte {
 	return outputBytes.Bytes()
 }
 
-func toJsonRawMessage(value interface{}) json.RawMessage {
-	var err error
-	var bytes json.RawMessage
-	if bytes, err = json.Marshal(value); err != nil {
-		log.Fatal("Failed to convert to json.RawMessage:", err)
-	}
-	return bytes
-}
-
 // Inspect the specified image to get any feature config set on a label
-func getImageFeatureMetadata(imageToFinalize string, buildModeOverride string) (map[string]LayerFeatureMetadata, string, string) {
+func getImageFeatureMetadata(imageToFinalize string, buildModeOverride string) (map[string]common.LayerFeatureMetadata, string, string) {
 	var labelMetadata PostProcessingMetadata
 
 	// Use docker inspect to get metadata
@@ -206,21 +261,21 @@ func getImageFeatureMetadata(imageToFinalize string, buildModeOverride string) (
 		buildMode = buildModeOverride
 	} else if labelMetadata.BuildMode == "" {
 		// If no override, and we didn't get a value off of the image, then use the default
-		buildMode = DefaultContainerImageBuildMode
+		buildMode = common.DefaultContainerImageBuildMode
 	}
 
 	// Convert feature metadata to map of LayerFeatureMetadata structs
-	featureMetadataMap := make(map[string]LayerFeatureMetadata)
+	featureMetadataMap := make(map[string]common.LayerFeatureMetadata)
 	if labelMetadata.Lifecycle.Buildpacks != nil {
 		for _, buildpackMetadata := range labelMetadata.Lifecycle.Buildpacks {
 			for _, buildpackLayerMetadata := range buildpackMetadata.Layers {
 				if buildpackLayerMetadata.Data != nil {
 					// Cast so we can use it
 					data := buildpackLayerMetadata.Data.(map[string]interface{})
-					if _, hasKey := data[FeatureLayerMetadataId]; hasKey {
+					if _, hasKey := data[common.FeatureLayerMetadataId]; hasKey {
 						// Convert interface to struct
-						featureMetadata := LayerFeatureMetadata{}
-						featureMetadata.SetProperties(data[FeatureLayerMetadataId].(map[string]interface{}))
+						featureMetadata := common.LayerFeatureMetadata{}
+						featureMetadata.SetProperties(data[common.FeatureLayerMetadataId].(map[string]interface{}))
 						featureMetadataMap[featureMetadata.Id] = featureMetadata
 					}
 
@@ -264,12 +319,4 @@ func devContainerImageBuild(imageToFinalize string, tempDevContainerJsonPath str
 	if commandErr != nil || dockerCommand.ProcessState.ExitCode() != 0 {
 		log.Fatal("Failed to build using devcontainer CLI: " + commandErr.Error())
 	}
-}
-
-func generateDevContainerFeatureWrapper(devContainerJsonFeatureMap map[string]interface{}) {
-
-}
-
-func generateActionsConfig(devContainerJsonFeatureMap map[string]interface{}) {
-
 }
