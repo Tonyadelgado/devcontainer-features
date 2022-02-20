@@ -10,7 +10,7 @@ fi
 
 test_project_folder="${2:-"${script_dir}/test-project"}"
 
-"${script_dir}/../scripts/create-full-builders.sh"
+"${script_dir}/../scripts/package-builders.sh"
 "${devpacker_dir}/devpacker" build prod_test_image \
     -v \
     --path "${test_project_folder}" \

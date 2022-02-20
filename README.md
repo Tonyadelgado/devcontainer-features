@@ -25,8 +25,9 @@ The `acquire` and `configure` scripts will have some environment passed into the
 
 - `_BUILD_ARG_<FEATUREID>_BUILDMODE` - Allows the script to alter behavior depending on what the feature is being used for. Will be either `devcontainer` when the build is to create a dev container image or `production` for non-development scenarios.
 - `_BUILD_ARG_<FEATUREID>_TARGETPATH` - Location to install the tool. Include symlinks to `bin` in this folder to ensure they are in the path if you do not directly install there.
-- `_BUILD_ARG_<FEATUREID>_PROFILE_D` - Location you can place any executable (chmod +x) scripts that should be sourced from an interactive or login shell. Note that this is just used to resolve environment variables, not bring new functions into the shell.
-- `_BUILD_ARG_<FEATUREID>_<OPTION>` - Any selections made based on options in `devcontainer-features.json`. Mirrors what would be in `devcontainer-features.env` in `install.sh`. When used in a Devpack, you can also set these variables in `project.toml` or the `pack` CLI using `BP_CONTAINER_FEATURE_<FEATUREID>_<OPTION>` and will always be applied and setting `BP_CONTAINER_FEATURE_<FEATUREID>` to `true` will enable the feature regardless. Values in `devcontainer.json` are only considered when `_BUILD_ARG_<FEATUREID>_BUILD_MODE` is set to `devcontainer`.
+- `_BUILD_ARG_<FEATUREID>_PROFILE_D` - Location you can place any executable (chmod +x) that should be sourced from an interactive or login shell. Note that this is just used to resolve environment variables, not bring new functions into the shell.
+- `_BUILD_ARG_<FEATUREID>_ENTRYPOINT_D` - Location you can place any executable (chmod +x) that should executed as a part of the container `ENTRYPOINT` command.
+- `_BUILD_ARG_<FEATUREID>_<OPTION>` - Any selections made based on options in `devcontainer-features.json`. Mirrors what would be in `devcontainer-features.env` in `install.sh`. When used in a Devpack, you can also set these variables in `project.toml` or the `pack` CLI using `BP_CONTAINER_FEATURE_<FEATUREID>_<OPTION>` and will always be applied and setting `BP_CONTAINER_FEATURE_<FEATUREID>` to `true` will enable the feature regardless. Values in `devcontainer.json` are only considered when `_BUILD_ARG_<FEATUREID>_BUILDMODE` is set to `devcontainer`.
 
 ### Environment variables for `detect`
 
@@ -34,7 +35,7 @@ The detect script is only used in Devpacks and therefore has a few different env
 
 - `_BUILD_ARG_<FEATUREID>_BUILDMODE` - Allows the script to alter behavior depending on what the feature is being used for. Will be either `devcontainer` when the build is to create a dev container image or `production` for non-development scenarios.
 - `_BUILD_ARG_<FEATUREID>_<OPTION>` - Any selections already made based on options in `devcontainer-features.json`. Mirrors what would be in `devcontainer-features.env` in `install.sh`.
--`_BUILD_ARG_<FEATUREID>_SELECTION_ENV_FILE_PATH` - Specifies the location of a `.env` file that can be used to update feature options that should be passed as build arguments to the `acquire` or `configure` scripts. Add these selections in the file using the same `_BUILD_ARG_<FEATUREID>_<OPTION>` variables the other scripts expect as inputs. However, note that `...TARGETPATH`, `...PROFILE_D`, and `...BUILDMODE` variables cannot be updated.
+-`_BUILD_ARG_<FEATUREID>_SELECTION_ENV_FILE_PATH` - Specifies the location of a `.env` file that can be used to update feature options that should be passed as build arguments to the `acquire` or `configure` scripts. Add these selections in the file using the same `_BUILD_ARG_<FEATUREID>_<OPTION>` variables the other scripts expect as inputs. However, note that `...TARGETPATH`, `...PROFILE_D`, `...ENTRYPOINT_D`, and `...BUILDMODE` variables cannot be updated.
 
 Any features set up this way will be automatically included in the next repository release.
 

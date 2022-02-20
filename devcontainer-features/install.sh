@@ -87,7 +87,7 @@ add_env_boostrap_to_file() {
     fi
 }
 
-mkdir -p "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_ENTRYPOINT_D}"  "${DEV_CONTAINER_MARKERS}"
+mkdir -p "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_ENTRYPOINT_D}" "${DEV_CONTAINER_MARKERS}"
 chown "${username}" "${DEV_CONTAINER_PROFILE_D}" "${DEV_CONTAINER_ENTRYPOINT_D}" "${DEV_CONTAINER_MARKERS}"
 # Add profile.d script
 if [ ! -e "${DEV_CONTAINER_CONFIG_DIR}/env-bootstrap.sh" ]; then
@@ -129,6 +129,7 @@ add_env_boostrap_to_file /etc/zsh/zprofile /etc/zsh
 
 # Execute actual feature installs
 conditional_install buildpack-test
+conditional_install buildpack-test-2
 conditional_install python
 conditional_install nodejs
 conditional_install packcli

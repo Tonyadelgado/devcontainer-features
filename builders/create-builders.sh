@@ -17,11 +17,11 @@ create_builder() {
     local toml_dir="${script_dir}/${builder_name}"
     local toml="$(cat "${toml_dir}/builder-${builder_type}.toml")"
     toml="${toml//\${publisher\}/${publisher}}"
-    toml="${toml//\${featureset\}/${featureset}}"
+    toml="${toml//\${featureset\}/${featureset_name}}"
     toml="${toml//\${version\}/${version}}"
     toml="${toml//\${toml_dir\}/${toml_dir}}"
     echo "${toml}" > /tmp/builder-tmp/builder-${builder_type}.toml
-    local uri="ghcr.io/${publisher}/${featureset}/builder-${builder_type}-${builder_name}"
+    local uri="ghcr.io/${publisher}/${featureset_name}/builder-${builder_type}-${builder_name}"
     pack builder create "${uri}" --pull-policy if-not-present -c /tmp/builder-tmp/builder-${builder_type}.toml
     if [ "${publish}" = "true" ]; then
         echo "(*) Publishing..."
@@ -29,7 +29,9 @@ create_builder() {
     fi
 }
 
+echo "(*) Creating ${builder_name} devcontainer builder..."
 create_builder devcontainer
+echo "(*) Creating ${builder_name} prod builder..."
 create_builder prod
 
 rm -rf /tmp/builder-tmp

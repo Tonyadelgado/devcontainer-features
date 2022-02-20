@@ -15,8 +15,8 @@ build_stack_images() {
     if [ ! -z "${1}" ]; then
         prefix="${1}-"
     fi
-    docker build -t "${uri_prefix}/stack-${prefix}build-image" --cache-from "${uri_prefix}/stack-${prefix}build-image" --target ${prefix}build .
-    docker build -t "${uri_prefix}/stack-${prefix}run-image" --cache-from "${uri_prefix}/stack-${prefix}run-image" --target ${prefix}run .
+    docker build -t "${uri_prefix}/stack-${prefix}build-image" --cache-from "${uri_prefix}/stack-${prefix}build-image" --target ${prefix}build "${script_dir}"
+    docker build -t "${uri_prefix}/stack-${prefix}run-image" --cache-from "${uri_prefix}/stack-${prefix}run-image" --target ${prefix}run "${script_dir}"
     if [ "${publish}" = "true" ]; then
         echo "(*) Publishing..."
         docker push "${uri_prefix}/stack-${prefix}build-image"
@@ -25,5 +25,7 @@ build_stack_images() {
 }
 
 # Create two stacks - normal, devcontainer
+echo "(*) Building stack images..."
 build_stack_images
+echo "(*) Building devcontainer stack images..."
 build_stack_images devcontainer

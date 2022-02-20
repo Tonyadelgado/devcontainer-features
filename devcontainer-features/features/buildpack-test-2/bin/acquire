@@ -23,24 +23,13 @@ fi
 
 # Test out the profile.d interface
 mkdir -p "${profile_d}"
-echo "export BUILDPACK_TEST_PROFILE_D_WORKED=true" > "${profile_d}/buildpack-test.sh"
+echo "export BUILDPACK_TEST_2_PROFILE_D_WORKED=true" > "${profile_d}/buildpack-test.sh"
 chmod +x "${profile_d}/buildpack-test.sh"
 
 # Test out the entrypoint.d interface
 mkdir -p "${entrypoint_d}"
-echo "date >> /tmp/start.log" > "${entrypoint_d}/entrypoint-test.sh"
+echo "echo -n '(2) ' >> /tmp/start.log && date >> /tmp/start.log" > "${entrypoint_d}/entrypoint-test.sh"
 chmod +x "${entrypoint_d}/entrypoint-test.sh"
-
-mkdir -p "${target_path}"/bin
-cat << EOF > "${target_path}"/bin/foo
-#!/bin/sh
-echo "Foo!! Foo is ${foo}"
-echo "Marker: \$(cat ${marker_path})"
-echo "BUILDPACK_TEST_PROFILE_D_WORKED=\${BUILDPACK_TEST_PROFILE_D_WORKED}"
-echo "TEST=\${TEST}"
-echo "TEST2=\${TEST2}"
-EOF
-chmod +x "${target_path}"/bin/foo
 
 # Mark as complete
 update_marker "${marker_path}" "${target_path}" "${version}" "${foo}" "${build_mode}"

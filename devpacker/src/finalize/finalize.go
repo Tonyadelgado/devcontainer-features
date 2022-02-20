@@ -228,8 +228,6 @@ func executePostProcessing(postProcessingConfig PostProcessingConfig) {
 		postProcessingDockerfileModified = append(postProcessingDockerfileModified, []byte("]")...)
 	}
 
-	log.Println("**DEBUG**", string(postProcessingDockerfileModified))
-
 	dockerFilePath := filepath.Join(tempDir, "Dockerfile")
 	if err = common.WriteFile(dockerFilePath, postProcessingDockerfileModified); err != nil {
 		log.Fatal("Failed to write Dockerfile: ", err)

@@ -128,6 +128,47 @@
 			"capAdd": [ "SYS_PTRACE" ],
 			"securityOpt": [ "seccomp=unconfined" ],
 			"extensions": ["mutantdino.resourcemonitor"],
+			"entrypoint": "/usr/local/etc/dev-container-features/entrypoint-bootstrap.sh",
+			"options": {
+				"version": {
+					"type": "string",
+					"proposals": ["latest"],
+					"default": "latest",
+					"description": "Version"
+				},
+				"foo": {
+					"type": "string",
+					"proposals": ["foo"],
+					"default": "foo",
+					"description": "Foo"
+				},
+				"targetPath": {
+					"type": "string",
+					"proposals": ["/usr/local"],
+					"default": "/usr/local",
+					"description": "Target install path"
+				},
+				"buildMode": {
+					"type": "string",
+					"enum": ["production", "devcontainer"],
+					"default": "devcontainer",
+					"description": "Select the production build mode to skip installing development tools."
+				}
+			}
+		},
+		{
+			"id": "buildpack-test-2",
+			"name": "Test feature #2 for devpacker",
+			"containerEnv": {
+				"TEST2": "true",
+				"PATH": "/i/am/before-2:${PATH}:/i/am/after-2",
+				"TEST2-2": "${TEST2}"
+			},
+			"privileged": true,
+			"capAdd": [ "SYS_PTRACE" ],
+			"securityOpt": [ "seccomp=unconfined" ],
+			"extensions": ["mutantdino.resourcemonitor","chrisdias.vscode-opennewinstance"],
+			"entrypoint": "/usr/local/etc/dev-container-features/entrypoint-bootstrap.sh",
 			"options": {
 				"version": {
 					"type": "string",
