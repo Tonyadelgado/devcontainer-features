@@ -27,7 +27,7 @@ jobs:
         run: |
           export PATH="${PATH}:$HOME/.local"
           export _BUILD_ARG_PACKCLI_TARGETPATH="$HOME/.local"
-          bash features/packcli/bin/acquire
+          bash devcontainer-features/features/packcli/bin/acquire
           npm install -g @vscode/dev-container-cli
 
       - name: Package and publish devpack images
