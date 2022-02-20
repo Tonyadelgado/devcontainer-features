@@ -40,11 +40,11 @@ jobs:
         with:
           path-to-features: 'devcontainer-features'
 
-      - name: Prep output locations
+      - name: Move to dist
         run: |
           mkdir -p dist/
           mv ./devpacker/out/* ./dist
-          mv ./devcontainer-features/*.tgz ./dist
+          mv ./devcontainer-features.tgz ./dist
 
       - name: Create checksums for files
         run: |
