@@ -56,7 +56,6 @@ func (fb FeatureBuilder) Build(context libcnb.BuildContext) (libcnb.BuildResult,
 		if shouldAddLayer {
 			layerContributor.Context = context
 			result.Layers = append(result.Layers, layerContributor)
-			// TODO: Handle entrypoints? Or leave this to devcontainer CLI?
 		}
 	}
 	// Generate any unmet entries
